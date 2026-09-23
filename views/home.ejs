@@ -36,7 +36,7 @@
       <div class="panel wide cut-l" data-tilt style="--i:0"><div class="feature-icon">📱</div><h3>QRIS SEMUA E-WALLET</h3><p>DANA, OVO, GoPay, ShopeePay, LinkAja &amp; m-banking. Satu QR, semua bisa bayar.</p></div>
       <div class="panel wide tone cut-r" data-tilt style="--i:1"><div class="feature-icon">🔑</div><h3>API KEY DEVELOPER</h3><p>Bikin API key sendiri, sambungkan ke website atau bot (Telegram/WhatsApp/Discord). Lengkap dengan webhook callback.</p></div>
       <div class="panel yellow" data-tilt style="--i:2"><div class="feature-icon" style="background:#fff">💸</div><h3>TARIK OTOMATIS</h3><p>Ke bank &amp; e-wallet, diproses otomatis tanpa antre admin.</p></div>
-      <div class="panel cyan" data-tilt style="--i:3"><div class="feature-icon">🪪</div><h3>TANPA KTP</h3><p>Daftar cukup username, Gmail &amp; password. Atau login Google / GitHub.</p></div>
+      <div class="panel cyan" data-tilt style="--i:3"><div class="feature-icon">🪪</div><h3>TANPA KTP</h3><p>Daftar cukup masukkan nama. Tanpa email, tanpa password — login pakai kode akun unik.</p></div>
       <div class="panel red" data-tilt style="--i:4"><div class="feature-icon">🔔</div><h3>NOTIF REAL-TIME</h3><p>Setiap deposit &amp; penarikan dipantau otomatis, status langsung ter-update.</p></div>
     </div>
   </div>
@@ -46,7 +46,7 @@
   <div class="container">
     <h2 class="section-title text-3d">CHAPTER 2: CARA KERJA</h2>
     <div class="grid four">
-      <div class="panel" data-tilt style="--i:0"><span class="panel-tag">PANEL 1</span><h3>DAFTAR</h3><p>Username + Gmail + password. 10 detik beres.</p></div>
+      <div class="panel" data-tilt style="--i:0"><span class="panel-tag">PANEL 1</span><h3>DAFTAR</h3><p>Masukkan nama, dapat kode akun. 5 detik beres.</p></div>
       <div class="panel" data-tilt style="--i:1"><span class="panel-tag">PANEL 2</span><h3>BUAT QRIS</h3><p>Dari dashboard atau panggil <code class="inline">/api/v1/deposit/create</code>.</p></div>
       <div class="panel" data-tilt style="--i:2"><span class="panel-tag">PANEL 3</span><h3>CUSTOMER BAYAR</h3><p>Status berubah otomatis, saldo langsung masuk.</p></div>
       <div class="panel" data-tilt style="--i:3"><span class="panel-tag">PANEL 4</span><h3>TARIK SALDO</h3><p>Min <%= rupiah(rules.withdrawMin) %>, admin <%= rupiah(rules.withdrawFee) %>. Buka <%= rules.hours %>.</p></div>

@@ -12,10 +12,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  password_hash TEXT,
-  google_id TEXT UNIQUE,
-  github_id TEXT UNIQUE,
+  access_code_hash TEXT UNIQUE,
   role TEXT NOT NULL DEFAULT 'user',
   balance INTEGER NOT NULL DEFAULT 0,
   banned INTEGER NOT NULL DEFAULT 0,
@@ -93,6 +90,33 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires INTEGER NOT NULL
 );
 `);
+
+// Migrasi dari versi lama (login email/password/Google/GitHub) ke login kode akun.
+// Pengguna lama tidak punya kode: admin bisa membuatkan lewat Admin -> Pengguna -> Reset Kode.
+const userCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+if (userCols.includes('email')) {
+  db.pragma('foreign_keys = OFF');
+  db.transaction(() => {
+    db.exec(`
+      CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        access_code_hash TEXT UNIQUE,
+        role TEXT NOT NULL DEFAULT 'user',
+        balance INTEGER NOT NULL DEFAULT 0,
+        banned INTEGER NOT NULL DEFAULT 0,
+        webhook_url TEXT,
+        webhook_secret TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO users_new (id, username, role, balance, banned, webhook_url, webhook_secret, created_at)
+        SELECT id, username, role, balance, banned, webhook_url, webhook_secret, created_at FROM users;
+      DROP TABLE users;
+      ALTER TABLE users_new RENAME TO users;
+    `);
+  })();
+  db.pragma('foreign_keys = ON');
+}
 
 /**
  * Ubah saldo user secara atomik + catat mutasi.

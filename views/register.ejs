@@ -5,17 +5,14 @@
     <div class="panel" data-tilt>
       <span class="panel-tag">NEW CHARACTER!</span>
       <h1 class="text-3d center" style="font-size:2.6rem">DAFTAR</h1>
+      <p class="center">Cukup masukkan nama. Kamu akan mendapat <b>KODE AKUN</b> unik untuk login.</p>
       <% if (typeof error !== 'undefined' && error) { %><div class="alert error" style="margin-bottom:14px"><b>GAWAT!</b><%= error %></div><% } %>
-      <form class="form" method="post" action="/register" autocomplete="on">
+      <form class="form" method="post" action="/register" autocomplete="off">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <div class="field"><label for="username">USERNAME</label><input class="input" id="username" name="username" value="<%= form.username || '' %>" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="contoh: arta_store"><div class="hint">3-20 karakter: huruf, angka, underscore</div></div>
-        <div class="field"><label for="email">GMAIL</label><input class="input" id="email" name="email" type="email" value="<%= form.email || '' %>" required placeholder="kamu@gmail.com"></div>
-        <div class="field"><label for="password">PASSWORD</label><input class="input" id="password" name="password" type="password" minlength="8" required placeholder="minimal 8 karakter"></div>
-        <div class="field"><label for="password_confirm">ULANGI PASSWORD</label><input class="input" id="password_confirm" name="password_confirm" type="password" minlength="8" required></div>
-        <button class="btn red block" type="submit">🚀 DAFTAR SEKARANG</button>
+        <div class="field"><label for="username">NAMA</label><input class="input" id="username" name="username" value="<%= form.username || '' %>" required pattern="[a-zA-Z0-9_]{3,20}" maxlength="20" placeholder="contoh: arta_store"><div class="hint">3-20 karakter: huruf, angka, underscore (tanpa spasi)</div></div>
+        <button class="btn red block" type="submit">🚀 DAFTAR &amp; DAPATKAN KODE</button>
       </form>
-      <%- include('partials/oauth') %>
-      <p class="center small">Sudah punya akun? <a href="/login">Masuk di sini</a></p>
+      <p class="center small" style="margin-top:16px">Sudah punya kode akun? <a href="/login">Masuk di sini</a></p>
     </div>
   </div>
 </main>

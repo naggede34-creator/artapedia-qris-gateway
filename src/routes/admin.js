@@ -1,11 +1,11 @@
 const express = require('express');
 const multer = require('multer');
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { db, changeBalance } = require('../db');
 const atlantic = require('../atlantic');
 const { flash, requireLogin, requireAdmin, csrfStrict } = require('../middleware');
 const { toInt } = require('../utils');
+const { resetCode } = require('../auth');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -37,9 +37,11 @@ router.get('/', async (req, res) => {
 router.get('/users', (req, res) => {
   const q = String(req.query.q || '').trim();
   const users = q
-    ? db.prepare('SELECT * FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY id DESC LIMIT 200').all(`%${q}%`, `%${q}%`)
+    ? db.prepare('SELECT * FROM users WHERE username LIKE ? OR CAST(id AS TEXT) = ? ORDER BY id DESC LIMIT 200').all(`%${q}%`, q)
     : db.prepare('SELECT * FROM users ORDER BY id DESC LIMIT 200').all();
-  res.render('admin/users', { title: 'Kelola Pengguna', users, q });
+  const resetInfo = req.session.resetInfo;
+  delete req.session.resetInfo;
+  res.render('admin/users', { title: 'Kelola Pengguna', users, q, resetInfo });
 });
 
 router.post('/users/:id/ban', (req, res) => {
@@ -53,6 +55,13 @@ router.post('/users/:id/role', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (id === req.user.id) flash(req, 'error', 'Tidak bisa mengubah role diri sendiri');
   else db.prepare("UPDATE users SET role = CASE role WHEN 'admin' THEN 'user' ELSE 'admin' END WHERE id=?").run(id);
+  res.redirect('/admin/users');
+});
+
+// User lupa kode -> admin buatkan kode baru (kode lama langsung tidak berlaku)
+router.post('/users/:id/reset-code', (req, res) => {
+  const u = db.prepare('SELECT id, username FROM users WHERE id = ?').get(parseInt(req.params.id, 10));
+  if (u) req.session.resetInfo = { username: u.username, code: resetCode(u.id) };
   res.redirect('/admin/users');
 });
 
@@ -85,7 +94,7 @@ router.get('/backup/export.json', (req, res) => {
   res.json({ app: 'artapedia-qris-gateway', version: 1, exported_at: new Date().toISOString(), tables });
 });
 
-const CSV_COLS = ['id', 'username', 'email', 'role', 'balance', 'banned', 'google_id', 'github_id', 'created_at'];
+const CSV_COLS = ['id', 'username', 'role', 'balance', 'banned', 'created_at'];
 const csvCell = (v) => {
   let s = v === null || v === undefined ? '' : String(v);
   if (/^[=+\-@]/.test(s)) s = "'" + s; // cegah formula injection di Excel
@@ -154,16 +163,14 @@ router.post('/backup/import', upload.single('file'), csrfStrict, (req, res) => {
       let added = 0, skipped = 0;
       db.transaction(() => {
         for (const u of payload.tables.users) {
-          const email = String(u.email || '').toLowerCase().trim();
           const username = String(u.username || '').trim();
-          if (!email || !username || db.prepare('SELECT 1 FROM users WHERE email=? OR username=?').get(email, username)) { skipped++; continue; }
+          if (!username || db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(username)) { skipped++; continue; }
           db.prepare(
-            `INSERT INTO users (username, email, password_hash, google_id, github_id, role, balance, banned, webhook_url, webhook_secret, created_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,COALESCE(?, datetime('now')))`
+            `INSERT INTO users (username, access_code_hash, role, balance, banned, webhook_url, webhook_secret, created_at)
+             VALUES (?,?,?,?,?,?,?,COALESCE(?, datetime('now')))`
           ).run(
-            username, email,
-            u.password_hash || (u.password ? bcrypt.hashSync(String(u.password), 10) : null),
-            u.google_id || null, u.github_id || null,
+            username,
+            u.access_code_hash || null,
             u.role === 'admin' ? 'admin' : 'user',
             parseInt(u.balance, 10) || 0,
             parseInt(u.banned, 10) ? 1 : 0,

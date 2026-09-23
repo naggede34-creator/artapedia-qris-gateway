@@ -30,7 +30,7 @@ app.use(
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'"],
-        formAction: ["'self'", 'https://accounts.google.com', 'https://github.com'],
+        formAction: ["'self'"],
       },
     },
   })
@@ -74,7 +74,7 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(locals);
-app.use(['/login', '/register'], rateLimit({ windowMs: 15 * 60000, limit: 30, skip: (req) => req.method !== 'POST' }));
+app.use(['/login', '/register'], rateLimit({ windowMs: 15 * 60000, limit: 20, skip: (req) => req.method !== 'POST' }));
 app.use(csrf);
 
 app.use('/', require('./routes/web'));

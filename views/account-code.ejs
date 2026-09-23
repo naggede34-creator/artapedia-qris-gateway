@@ -1,0 +1,25 @@
+<%- include('partials/header') %>
+<main class="container">
+  <div class="auth-wrap" style="max-width:600px">
+    <div class="panel yellow center">
+      <span class="panel-tag">PENTING!!</span>
+      <div class="sfx" style="position:relative;margin:0 auto 14px;width:130px;height:130px;font-size:1.4rem">SIMPAN!</div>
+      <h1 class="text-3d" style="font-size:2.2rem">KODE AKUN KAMU</h1>
+      <p>Halo <b><%= user.username %></b>! Ini satu-satunya cara untuk login ke akunmu.</p>
+      <div class="key-box" style="background:#fff;justify-content:center">
+        <code id="acc-code" style="font-size:1.35rem;letter-spacing:2px;flex:0 1 auto"><%= code %></code>
+      </div>
+      <div class="row" style="justify-content:center;margin-top:14px">
+        <button class="btn sm" type="button" data-copy-from="#acc-code">📋 SALIN</button>
+        <a class="btn sm white" download="kode-akun-artapedia-<%= user.username %>.txt"
+           href="data:text/plain;charset=utf-8,<%= encodeURIComponent('Artapedia QRIS Gateway\nNama: ' + user.username + '\nKode akun: ' + code + '\n\nJangan bagikan kode ini ke siapa pun.\n') %>">💾 DOWNLOAD .TXT</a>
+      </div>
+      <div class="alert error" style="margin-top:18px;text-align:left"><b>INGAT!</b>Kode hanya ditampilkan <u>sekali</u>. Simpan di catatan, screenshot, atau download file-nya. Jangan bagikan ke siapa pun — siapa pun yang punya kode ini bisa masuk ke akunmu.</div>
+      <form method="get" action="/dashboard" class="form" style="margin-top:16px">
+        <label class="small"><input type="checkbox" required> Saya sudah menyimpan kode akun saya</label>
+        <button class="btn red block" type="submit">LANJUT KE DASHBOARD →</button>
+      </form>
+    </div>
+  </div>
+</main>
+<%- include('partials/footer') %>

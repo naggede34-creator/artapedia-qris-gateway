@@ -322,9 +322,6 @@ main { padding: 38px 0 70px; }
 .auth-wrap { max-width: 480px; margin: 0 auto; }
 .divider { display: flex; align-items: center; gap: 12px; font-family: var(--font-title); letter-spacing: 1px; margin: 6px 0; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 3px; background: var(--ink); }
-.oauth { display: grid; gap: 10px; }
-.btn.google { background: var(--white); }
-.btn.github { background: #24292f; color: var(--white); }
 
 /* ---------- ALERTS (speech bubbles) ---------- */
 .flash { display: grid; gap: 12px; margin-bottom: 24px; }

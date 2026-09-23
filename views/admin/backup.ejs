@@ -7,7 +7,7 @@
     <div class="panel" data-tilt style="--i:0">
       <span class="panel-tag">EKSPOR</span>
       <h3>DOWNLOAD BACKUP</h3>
-      <p><b>Backup penuh (.json)</b> berisi semua pengguna, API key (ter-hash), deposit, penarikan &amp; mutasi. Simpan di tempat aman — file ini berisi data sensitif.</p>
+      <p><b>Backup penuh (.json)</b> berisi semua pengguna (kode akun ter-hash, tetap bisa dipakai login setelah restore), API key (ter-hash), deposit, penarikan &amp; mutasi. Simpan di tempat aman — file ini berisi data sensitif.</p>
       <div class="row">
         <a class="btn red" href="/admin/backup/export.json">💾 BACKUP PENUH (.JSON)</a>
         <a class="btn white" href="/admin/backup/users.csv">📄 PENGGUNA (.CSV)</a>
@@ -27,7 +27,7 @@
         <div class="field"><label for="confirm">KONFIRMASI (khusus restore penuh)</label><input class="input" id="confirm" name="confirm" placeholder="ketik RESTORE"></div>
         <button class="btn" type="submit" >⬆️ IMPOR</button>
       </form>
-      <p class="hint">Format CSV: kolom <code class="inline">username,email,role,balance,banned</code> (+ opsional <code class="inline">password</code> untuk set password awal).</p>
+      <p class="hint">Format CSV: kolom <code class="inline">username,role,balance,banned</code>. Pengguna dari CSV belum punya kode akun — buatkan lewat tombol <b>RESET KODE</b> di menu Pengguna.</p>
     </div>
   </div>
 </main>

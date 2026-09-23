@@ -1,6 +1,6 @@
 const express = require('express');
 const QRCode = require('qrcode');
-const { passport, createUser, USERNAME_RE } = require('../auth');
+const { createUser, findByCode, USERNAME_RE } = require('../auth');
 const { db } = require('../db');
 const config = require('../config');
 const { flash, requireLogin } = require('../middleware');
@@ -14,7 +14,6 @@ const rules = () => ({ ...config.rules, open: isWithdrawOpen(), hours: withdrawH
 
 router.use((req, res, next) => {
   res.locals.rules = rules();
-  res.locals.oauth = { google: !!config.google.clientID, github: !!config.github.clientID };
   res.locals.baseUrl = config.baseUrl;
   next();
 });
@@ -28,51 +27,34 @@ router.get('/register', (req, res) => (req.user ? res.redirect('/dashboard') : r
 
 router.post('/register', (req, res, next) => {
   const username = String(req.body.username || '').trim();
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const password = String(req.body.password || '');
-  const confirm = String(req.body.password_confirm || '');
-  const fail = (msg) => res.status(400).render('register', { title: 'Daftar', form: { username, email }, error: msg });
+  const fail = (msg) => res.status(400).render('register', { title: 'Daftar', form: { username }, error: msg });
 
-  if (!USERNAME_RE.test(username)) return fail('Username 3-20 karakter: huruf, angka, underscore.');
-  if (!/^[^\s@]+@gmail\.com$/i.test(email)) return fail('Gunakan alamat Gmail yang valid (contoh: kamu@gmail.com).');
-  if (password.length < 8) return fail('Password minimal 8 karakter.');
-  if (password !== confirm) return fail('Konfirmasi password tidak sama.');
-  if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) return fail('Username sudah dipakai.');
-  if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) return fail('Gmail sudah terdaftar.');
+  if (!USERNAME_RE.test(username)) return fail('Nama 3-20 karakter: huruf, angka, underscore (tanpa spasi).');
+  if (db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(username)) return fail('Nama sudah dipakai, coba nama lain.');
 
-  const user = createUser({ username, email, password }, 'Form (username + gmail)');
+  const { user, code } = createUser(username, 'Web');
   req.login(user, (err) => {
     if (err) return next(err);
-    flash(req, 'success', `Selamat datang, ${user.username}! 🎉`);
-    res.redirect('/dashboard');
+    req.session.newCode = code;
+    res.redirect('/kode-akun');
   });
+});
+
+// Kode akun hanya ditampilkan SEKALI setelah daftar / reset
+router.get('/kode-akun', requireLogin, (req, res) => {
+  const code = req.session.newCode;
+  if (!code) return res.redirect('/dashboard');
+  delete req.session.newCode;
+  res.render('account-code', { title: 'Simpan Kode Akun', code });
 });
 
 router.get('/login', (req, res) => (req.user ? res.redirect('/dashboard') : res.render('login', { title: 'Masuk' })));
 router.post('/login', (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
-    if (err) return next(err);
-    if (!user) return res.status(401).render('login', { title: 'Masuk', error: info && info.message, login: req.body.login });
-    req.login(user, (e) => (e ? next(e) : res.redirect('/dashboard')));
-  })(req, res, next);
+  const user = findByCode(req.body.code);
+  if (!user) return res.status(401).render('login', { title: 'Masuk', error: 'Kode akun salah atau tidak terdaftar.' });
+  req.login(user, (e) => (e ? next(e) : res.redirect('/dashboard')));
 });
 router.post('/logout', (req, res) => req.logout(() => res.redirect('/')));
-
-const oauthCallback = (provider) => (req, res, next) =>
-  passport.authenticate(provider, (err, user, info) => {
-    if (err || !user) {
-      flash(req, 'error', (info && info.message) || (err && err.message) || 'Login gagal');
-      return res.redirect('/login');
-    }
-    req.login(user, (e) => (e ? next(e) : res.redirect('/dashboard')));
-  })(req, res, next);
-
-router.get('/auth/google', (req, res, next) =>
-  config.google.clientID ? passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next) : res.redirect('/login'));
-router.get('/auth/google/callback', oauthCallback('google'));
-router.get('/auth/github', (req, res, next) =>
-  config.github.clientID ? passport.authenticate('github')(req, res, next) : res.redirect('/login'));
-router.get('/auth/github/callback', oauthCallback('github'));
 
 // ---------- Dashboard ----------
 router.get('/dashboard', requireLogin, (req, res) => {

@@ -20,7 +20,7 @@ async function send(text) {
 
 const notify = {
   newUser: (u, via) =>
-    send(`🆕 <b>PENGGUNA BARU</b>\n👤 ${esc(u.username)}\n📧 ${esc(u.email)}\n🔑 Daftar via: ${esc(via)}`),
+    send(`🆕 <b>PENGGUNA BARU</b>\n👤 ${esc(u.username)}\n🆔 ID: ${u.id}\n🔑 Daftar via: ${esc(via)}`),
   depositPending: (d, u) =>
     send(
       `⏳ <b>DEPOSIT PENDING</b>\n👤 ${esc(u.username)}\n🧾 ${esc(d.reff_id)}\n💰 ${rupiah(d.nominal)}\n📡 Sumber: ${esc(d.source)}`

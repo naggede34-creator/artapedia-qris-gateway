@@ -202,7 +202,7 @@ console.log(data.data.status); // pending / success`
         <div class="endpoint"><span class="method get">GET</span><code class="inline">/profile</code> <span class="small">(alias: <code class="inline">/balance</code>)</span></div>
         <h2>PROFIL &amp; SALDO</h2>
         <%- tabs({ 'cURL': `curl ${B}/profile -H "X-API-Key: ap_live_xxx"` }) %>
-        <%- json({ status: true, code: 200, data: { username: 'arta_store', email: 'arta@gmail.com', balance: 150000, created_at: '2026-09-01 08:00:00' } }) %>
+        <%- json({ status: true, code: 200, data: { username: 'arta_store', balance: 150000, created_at: '2026-09-01 08:00:00' } }) %>
       </section>
 
       <section id="mutations" class="panel">

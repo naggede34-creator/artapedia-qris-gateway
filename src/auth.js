@@ -1,100 +1,51 @@
+// Login tanpa email/password: saat daftar cukup isi nama, sistem membuat KODE AKUN unik.
+// Kode hanya ditampilkan sekali; yang disimpan di database hanya hash-nya.
 const passport = require('passport');
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const LocalStrategy = require('passport-local').Strategy;
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const GitHubStrategy = require('passport-github2').Strategy;
 const { db } = require('./db');
-const config = require('./config');
 const { notify } = require('./telegram');
+const { sha256 } = require('./utils');
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+// Tanpa huruf/angka yang mirip (0/O, 1/I/L) supaya mudah dicatat
+const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
-function roleFor(email) {
-  return config.adminEmails.includes(String(email).toLowerCase()) ? 'admin' : 'user';
+function generateCode() {
+  const bytes = crypto.randomBytes(16);
+  let raw = '';
+  for (let i = 0; i < 16; i++) raw += ALPHABET[bytes[i] % ALPHABET.length];
+  return `ARTA-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}-${raw.slice(12, 16)}`;
 }
 
-function createUser({ username, email, password, googleId, githubId }, via) {
-  const hash = password ? bcrypt.hashSync(password, 10) : null;
+/** Samakan format: huruf besar, buang spasi/strip, buang awalan ARTA. */
+function normalizeCode(code) {
+  return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^ARTA/, '');
+}
+const hashCode = (code) => sha256(normalizeCode(code));
+
+function createUser(username, via) {
+  const code = generateCode();
   const info = db
-    .prepare(
-      `INSERT INTO users (username, email, password_hash, google_id, github_id, role, webhook_secret)
-       VALUES (?,?,?,?,?,?,?)`
-    )
-    .run(username, email.toLowerCase(), hash, googleId || null, githubId || null, roleFor(email), crypto.randomBytes(24).toString('hex'));
+    .prepare('INSERT INTO users (username, access_code_hash, webhook_secret) VALUES (?,?,?)')
+    .run(username, hashCode(code), crypto.randomBytes(24).toString('hex'));
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
   notify.newUser(user, via);
-  return user;
+  return { user, code };
 }
 
-function uniqueUsername(base) {
-  let name = String(base || 'user').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15) || 'user';
-  if (name.length < 3) name = name + 'usr';
-  let candidate = name;
-  while (db.prepare('SELECT 1 FROM users WHERE username = ?').get(candidate)) {
-    candidate = name + Math.floor(Math.random() * 10000);
-  }
-  return candidate;
+/** Buat kode baru untuk user (kode lama langsung tidak berlaku). */
+function resetCode(userId) {
+  const code = generateCode();
+  db.prepare('UPDATE users SET access_code_hash = ? WHERE id = ?').run(hashCode(code), userId);
+  return code;
 }
 
-function oauthUser(provider, profile) {
-  const col = provider === 'google' ? 'google_id' : 'github_id';
-  let user = db.prepare(`SELECT * FROM users WHERE ${col} = ?`).get(String(profile.id));
-  if (user) return user;
-  const email = profile.emails && profile.emails[0] && profile.emails[0].value;
-  if (!email) throw new Error(`Akun ${provider} kamu tidak punya email publik/terverifikasi`);
-  user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
-  if (user) {
-    db.prepare(`UPDATE users SET ${col} = ? WHERE id = ?`).run(String(profile.id), user.id);
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
-  }
-  const base = profile.username || (profile.displayName || '').replace(/\s+/g, '') || email.split('@')[0];
-  return createUser(
-    { username: uniqueUsername(base), email, [provider === 'google' ? 'googleId' : 'githubId']: String(profile.id) },
-    provider === 'google' ? 'Google' : 'GitHub'
-  );
-}
-
-passport.use(
-  new LocalStrategy({ usernameField: 'login' }, (login, password, done) => {
-    const user = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?').get(login, String(login).toLowerCase());
-    if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
-      return done(null, false, { message: 'Username/email atau password salah' });
-    }
-    return done(null, user);
-  })
-);
-
-if (config.google.clientID) {
-  passport.use(
-    new GoogleStrategy(
-      { ...config.google, callbackURL: `${config.baseUrl}/auth/google/callback` },
-      (at, rt, profile, done) => {
-        try {
-          done(null, oauthUser('google', profile));
-        } catch (e) {
-          done(null, false, { message: e.message });
-        }
-      }
-    )
-  );
-}
-if (config.github.clientID) {
-  passport.use(
-    new GitHubStrategy(
-      { ...config.github, callbackURL: `${config.baseUrl}/auth/github/callback`, scope: ['user:email'] },
-      (at, rt, profile, done) => {
-        try {
-          done(null, oauthUser('github', profile));
-        } catch (e) {
-          done(null, false, { message: e.message });
-        }
-      }
-    )
-  );
+function findByCode(code) {
+  if (normalizeCode(code).length !== 16) return null;
+  return db.prepare('SELECT * FROM users WHERE access_code_hash = ?').get(hashCode(code)) || null;
 }
 
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => done(null, db.prepare('SELECT * FROM users WHERE id = ?').get(id) || false));
 
-module.exports = { passport, createUser, USERNAME_RE, roleFor };
+module.exports = { passport, createUser, resetCode, findByCode, USERNAME_RE };

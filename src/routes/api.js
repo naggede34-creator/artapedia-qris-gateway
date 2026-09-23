@@ -39,7 +39,7 @@ router.get('/info', (req, res) =>
 router.use(apiAuth);
 
 const profile = (req, res) => {
-  const u = db.prepare('SELECT username, email, balance, created_at FROM users WHERE id=?').get(req.apiUser.id);
+  const u = db.prepare('SELECT username, balance, created_at FROM users WHERE id=?').get(req.apiUser.id);
   ok(res, u);
 };
 router.get('/profile', profile);

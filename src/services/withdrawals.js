@@ -95,7 +95,6 @@ async function createWithdrawal(user, p) {
       accountNumber,
       accountName,
       amount,
-      email: user.email,
       note: `Withdraw ${refId}`,
     });
     db.prepare('UPDATE withdrawals SET atl_id = ? WHERE id = ?').run(data.id || null, id);

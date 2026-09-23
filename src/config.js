@@ -6,10 +6,6 @@ module.exports = {
   port: int(process.env.PORT, 3000),
   baseUrl: (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
   sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-  adminEmails: (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean),
   dbPath: process.env.DB_PATH || require('path').join(__dirname, '..', 'data', 'artapedia.db'),
 
   atlantic: {
@@ -20,15 +16,6 @@ module.exports = {
   telegram: {
     token: process.env.TELEGRAM_BOT_TOKEN || '',
     chatId: process.env.TELEGRAM_CHAT_ID || '',
-  },
-
-  google: {
-    clientID: process.env.GOOGLE_CLIENT_ID || '',
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-  },
-  github: {
-    clientID: process.env.GITHUB_CLIENT_ID || '',
-    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
   },
 
   rules: {

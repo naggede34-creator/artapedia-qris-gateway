@@ -6,14 +6,14 @@
       <span class="panel-tag">WELCOME BACK!</span>
       <h1 class="text-3d center" style="font-size:2.6rem">MASUK</h1>
       <% if (typeof error !== 'undefined' && error) { %><div class="alert error" style="margin-bottom:14px"><b>GAWAT!</b><%= error %></div><% } %>
-      <form class="form" method="post" action="/login">
+      <form class="form" method="post" action="/login" autocomplete="off">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <div class="field"><label for="login">USERNAME / GMAIL</label><input class="input" id="login" name="login" value="<%= typeof login !== 'undefined' ? login : '' %>" required></div>
-        <div class="field"><label for="password">PASSWORD</label><input class="input" id="password" name="password" type="password" required></div>
+        <div class="field"><label for="code">KODE AKUN</label>
+          <input class="input mono" id="code" name="code" required autocapitalize="characters" spellcheck="false" placeholder="ARTA-XXXX-XXXX-XXXX-XXXX" style="letter-spacing:1px">
+          <div class="hint">Kode yang kamu dapat saat daftar.</div></div>
         <button class="btn block" type="submit">⚡ MASUK</button>
       </form>
-      <%- include('partials/oauth') %>
-      <p class="center small">Belum punya akun? <a href="/register">Daftar gratis</a></p>
+      <p class="center small" style="margin-top:16px">Belum punya akun? <a href="/register">Daftar gratis</a><br>Lupa kode? Hubungi admin untuk reset kode.</p>
     </div>
   </div>
 </main>
