@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<main class="container">
+  <%- include('partials/flash') %>
+  <div id="pay" class="grid two <%= dep.status === 'success' ? 'paid' : '' %>" data-status-url="/deposit/<%= dep.reff_id %>/status" data-status="<%= dep.status %>" data-expires="<%= dep.expired_at || '' %>">
+    <div class="panel center" style="--i:0">
+      <span class="panel-tag">SCAN ME!</span>
+      <div class="sfx paid-burst">LUNAS!</div>
+      <% if (qr) { %>
+        <div class="qr-frame"><img src="<%= qr %>" alt="QRIS <%= dep.reff_id %>"><% if (dep.status === 'pending') { %><div class="scanline hide-when-done"></div><% } %></div>
+      <% } else if (dep.qr_image) { %>
+        <div class="qr-frame"><img src="<%= dep.qr_image %>" alt="QRIS"></div>
+      <% } %>
+      <p class="countdown hide-when-done" id="countdown"><%= dep.status === 'pending' ? '--:--' : '' %></p>
+      <p id="pay-msg"><%= dep.status === 'pending' ? 'Scan dengan aplikasi e-wallet / m-banking apa pun.' : dep.status === 'success' ? 'Pembayaran diterima! Saldo masuk ' + rupiah(dep.get_balance) : 'Transaksi ' + dep.status %></p>
+    </div>
+    <div class="panel tone" style="--i:1">
+      <span class="panel-tag">DETAIL</span>
+      <h2><%= rupiah(dep.nominal) %></h2>
+      <p>Status: <span id="pay-status" class="badge <%= dep.status %>"><%= dep.status.toUpperCase() %></span></p>
+      <p>ID: <span class="mono"><%= dep.reff_id %></span></p>
+      <p>Dibuat: <%= dep.created_at %><% if (dep.expired_at) { %><br>Kedaluwarsa: <%= dep.expired_at %> WIB<% } %></p>
+      <% if (dep.qr_string) { %><button class="btn sm white" type="button" data-copy="<%= dep.qr_string %>">SALIN QR STRING</button><% } %>
+      <% if (dep.status === 'pending') { %>
+        <form class="hide-when-done" method="post" action="/deposit/<%= dep.reff_id %>/cancel" data-confirm="Batalkan QRIS ini?" style="margin-top:14px">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm red" type="submit">BATALKAN</button>
+        </form>
+      <% } %>
+      <p style="margin-top:18px"><a href="/deposit">← Kembali</a></p>
+    </div>
+  </div>
+</main>
+<%- include('partials/footer') %>

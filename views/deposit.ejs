@@ -1,0 +1,47 @@
+<%- include('partials/header') %>
+<main class="container">
+  <%- include('partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">BUAT QRIS</h1></div>
+  <div class="grid two">
+    <div class="panel" data-tilt style="--i:0">
+      <span class="panel-tag">QRIS PEMBAYARAN</span>
+      <form class="form" method="post" action="/deposit">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field">
+          <label for="nominal">NOMINAL (Rp)</label>
+          <input class="input" id="nominal" name="nominal" inputmode="numeric" data-rupiah required placeholder="10.000">
+          <div class="hint">Min <%= rupiah(rules.depositMin) %> · Max <%= rupiah(rules.depositMax) %></div>
+        </div>
+        <div class="quick">
+          <% [2000, 10000, 25000, 50000, 100000, 500000].forEach(function (a) { %>
+            <button class="btn sm white" type="button" data-amount="<%= a %>" data-target="#nominal"><%= rupiah(a) %></button>
+          <% }) %>
+        </div>
+        <button class="btn red block" type="submit">⚡ GENERATE QRIS!</button>
+      </form>
+    </div>
+    <div class="panel tone" style="--i:1">
+      <span class="panel-tag">INFO</span>
+      <h3>BAGAIMANA SALDO MASUK?</h3>
+      <p>Setelah customer scan &amp; bayar, status berubah otomatis menjadi <span class="badge success">SUCCESS</span> dan saldo bersih (nominal − biaya QRIS) langsung masuk ke akunmu.</p>
+      <p>Mau buat QRIS dari website / bot? Pakai <a href="/developer">API key</a> dan ikuti <a href="/docs">dokumentasi</a>.</p>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:30px;--i:2">
+    <span class="panel-tag">QRIS TERAKHIR</span>
+    <% if (!list.length) { %><div class="empty">Belum ada QRIS dibuat.</div><% } else { %>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Sumber</th><th class="num">Nominal</th><th class="num">Diterima</th><th>Status</th><th>Waktu</th><th></th></tr></thead>
+      <tbody>
+      <% list.forEach(function (d) { %>
+        <tr><td class="mono"><%= d.reff_id %></td><td><span class="badge <%= d.source %>"><%= d.source.toUpperCase() %></span></td>
+          <td class="num"><%= rupiah(d.nominal) %></td><td class="num"><%= d.status === 'success' ? rupiah(d.get_balance) : '-' %></td>
+          <td><span class="badge <%= d.status %>"><%= d.status.toUpperCase() %></span></td><td class="small"><%= d.created_at %></td>
+          <td><a class="btn sm white" href="/deposit/<%= d.reff_id %>">LIHAT</a></td></tr>
+      <% }) %>
+      </tbody>
+    </table></div>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/footer') %>

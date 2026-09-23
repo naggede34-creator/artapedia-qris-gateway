@@ -1,0 +1,68 @@
+<%- include('partials/header') %>
+<section class="hero">
+  <div class="container">
+    <div>
+      <span class="chip red">🔥 TANPA KTP</span><span class="chip cyan">⚡ API READY</span><span class="chip">🤖 BOT FRIENDLY</span>
+      <h1 class="text-3d">ARTAPEDIA<br>QRIS GATEWAY!</h1>
+      <p class="hero-lead">Terima pembayaran <b>QRIS</b> dari semua e-wallet &amp; m-banking. Buat QRIS dari web atau lewat <b>API</b> untuk website &amp; bot kamu. Saldo bisa ditarik <b>otomatis</b>!</p>
+      <div class="hero-cta">
+        <a class="btn red" href="<%= user ? '/deposit' : '/register' %>">⚡ <%= user ? 'BUAT QRIS SEKARANG' : 'DAFTAR GRATIS' %></a>
+        <a class="btn white" href="/docs">📘 BACA API DOCS</a>
+      </div>
+    </div>
+    <div class="hero-stage" aria-hidden="true">
+      <div class="cube-wrap" style="left:2%;top:6%" data-depth="1.4"><div class="cube"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></div></div>
+      <div class="phone" data-depth="0.6">
+        <div class="phone-side"></div>
+        <div class="phone-body"></div>
+        <div class="phone-screen"><div class="small">SCAN UNTUK BAYAR</div><div class="qr"></div><div class="amt">Rp 50.000</div><div class="scanline"></div></div>
+      </div>
+      <div class="sfx" style="right:0;top:2%" data-depth="2">KA-<br>CHING!</div>
+      <div class="sfx yellow" style="left:6%;bottom:4%;width:120px;height:120px;font-size:1.4rem" data-depth="1.8">SCAN!</div>
+      <div class="coin" style="right:12%;bottom:14%" data-depth="2.4">Rp</div>
+      <div class="coin" style="left:30%;top:0;width:48px;height:48px;font-size:1.1rem;animation-delay:.6s" data-depth="2.8">Rp</div>
+      <div class="bubble float" style="right:2%;bottom:36%" data-depth="1.2">Tanpa KTP!</div>
+    </div>
+  </div>
+</section>
+<div class="band"><div class="track">
+  <% for (let i = 0; i < 2; i++) { %>★ DEPOSIT MIN <%= rupiah(rules.depositMin) %> ★ MAX <%= rupiah(rules.depositMax) %> ★ PENARIKAN MIN <%= rupiah(rules.withdrawMin) %> ★ ADMIN <%= rupiah(rules.withdrawFee) %>/PENARIKAN ★ PENARIKAN BUKA <%= rules.hours %> ★ NOTIF REAL-TIME ★ API KEY UNTUK DEVELOPER&nbsp;<% } %>
+</div></div>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title text-3d">CHAPTER 1: FITUR JAGOAN</h2>
+    <div class="strip">
+      <div class="panel wide cut-l" data-tilt style="--i:0"><div class="feature-icon">📱</div><h3>QRIS SEMUA E-WALLET</h3><p>DANA, OVO, GoPay, ShopeePay, LinkAja &amp; m-banking. Satu QR, semua bisa bayar.</p></div>
+      <div class="panel wide tone cut-r" data-tilt style="--i:1"><div class="feature-icon">🔑</div><h3>API KEY DEVELOPER</h3><p>Bikin API key sendiri, sambungkan ke website atau bot (Telegram/WhatsApp/Discord). Lengkap dengan webhook callback.</p></div>
+      <div class="panel yellow" data-tilt style="--i:2"><div class="feature-icon" style="background:#fff">💸</div><h3>TARIK OTOMATIS</h3><p>Ke bank &amp; e-wallet, diproses otomatis tanpa antre admin.</p></div>
+      <div class="panel cyan" data-tilt style="--i:3"><div class="feature-icon">🪪</div><h3>TANPA KTP</h3><p>Daftar cukup username, Gmail &amp; password. Atau login Google / GitHub.</p></div>
+      <div class="panel red" data-tilt style="--i:4"><div class="feature-icon">🔔</div><h3>NOTIF REAL-TIME</h3><p>Setiap deposit &amp; penarikan dipantau otomatis, status langsung ter-update.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <h2 class="section-title text-3d">CHAPTER 2: CARA KERJA</h2>
+    <div class="grid four">
+      <div class="panel" data-tilt style="--i:0"><span class="panel-tag">PANEL 1</span><h3>DAFTAR</h3><p>Username + Gmail + password. 10 detik beres.</p></div>
+      <div class="panel" data-tilt style="--i:1"><span class="panel-tag">PANEL 2</span><h3>BUAT QRIS</h3><p>Dari dashboard atau panggil <code class="inline">/api/v1/deposit/create</code>.</p></div>
+      <div class="panel" data-tilt style="--i:2"><span class="panel-tag">PANEL 3</span><h3>CUSTOMER BAYAR</h3><p>Status berubah otomatis, saldo langsung masuk.</p></div>
+      <div class="panel" data-tilt style="--i:3"><span class="panel-tag">PANEL 4</span><h3>TARIK SALDO</h3><p>Min <%= rupiah(rules.withdrawMin) %>, admin <%= rupiah(rules.withdrawFee) %>. Buka <%= rules.hours %>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="panel tone" style="text-align:center">
+      <div class="bubble" style="margin-bottom:26px">"Integrasi cuma 1 request!"</div>
+<pre class="code" style="text-align:left">curl -X POST <%= baseUrl %>/api/v1/deposit/create \
+  -H "X-API-Key: ap_live_xxxxxxxxxxxx" \
+  -d "nominal=10000"</pre>
+      <a class="btn red" href="/docs">LIHAT DOKUMENTASI LENGKAP →</a>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

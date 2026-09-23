@@ -1,0 +1,7 @@
+<% const fl = typeof flash !== 'undefined' ? flash : []; if (fl.length) { %>
+<div class="flash">
+  <% fl.forEach(function (f) { %>
+    <div class="alert <%= f.type %>"><b><%= f.type === 'success' ? 'YOSH!' : f.type === 'error' ? 'GAWAT!' : 'INFO!' %></b><%= f.msg %></div>
+  <% }) %>
+</div>
+<% } %>

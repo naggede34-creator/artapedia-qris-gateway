@@ -1,0 +1,324 @@
+<%- include('partials/header') %>
+<%
+  const B = baseUrl + '/api/v1';
+  let g = 0;
+  function tabs(samples) {
+    g++;
+    const langs = Object.keys(samples);
+    let h = '<div class="tabs" data-group="g' + g + '">';
+    langs.forEach(function (l, i) { h += '<button type="button" class="tab' + (i === 0 ? ' active' : '') + '" data-lang="' + l + '">' + l + '</button>'; });
+    h += '</div>';
+    langs.forEach(function (l, i) {
+      h += '<pre class="code tab-body' + (i === 0 ? ' active' : '') + '" data-group="g' + g + '" data-lang="' + l + '">' + samples[l].replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+    });
+    return h;
+  }
+  function json(o) { return '<pre class="code">' + JSON.stringify(o, null, 2).replace(/</g, '&lt;') + '</pre>'; }
+%>
+<main class="container">
+  <div class="page-head"><h1 class="text-3d">API DOCS</h1><a class="btn red" href="/developer">🔑 BUAT API KEY</a></div>
+  <div class="docs">
+    <aside class="panel docs-nav">
+      <div class="grp">MULAI</div>
+      <a href="#intro">Pendahuluan</a><a href="#auth">Autentikasi</a><a href="#format">Format Respon</a><a href="#rules">Aturan &amp; Limit</a>
+      <div class="grp">QRIS / DEPOSIT</div>
+      <a href="#dep-create">Buat QRIS</a><a href="#dep-status">Cek Status</a><a href="#dep-cancel">Batalkan</a><a href="#dep-list">Daftar QRIS</a>
+      <div class="grp">PENARIKAN</div>
+      <a href="#wd-banks">Daftar Bank</a><a href="#wd-check">Cek Rekening</a><a href="#wd-create">Tarik Saldo</a><a href="#wd-status">Status Penarikan</a>
+      <div class="grp">LAINNYA</div>
+      <a href="#profile">Profil &amp; Saldo</a><a href="#mutations">Mutasi</a><a href="#webhook">Webhook Callback</a><a href="#status">Daftar Status</a><a href="#errors">Kode Error</a><a href="#bot">Contoh Bot Telegram</a>
+    </aside>
+
+    <div>
+      <section id="intro" class="panel">
+        <span class="panel-tag">CHAPTER 0</span>
+        <h2>PENDAHULUAN</h2>
+        <p>Artapedia QRIS Gateway menyediakan REST API untuk membuat QRIS pembayaran, mengecek status, dan menarik saldo — cocok untuk website, toko online, maupun bot (Telegram, WhatsApp, Discord).</p>
+        <p><b>Base URL:</b></p>
+        <div class="key-box"><code id="baseurl"><%= B %></code><button class="btn sm" type="button" data-copy-from="#baseurl">SALIN</button></div>
+        <p class="small">Semua endpoint menerima body <code class="inline">application/x-www-form-urlencoded</code> <b>atau</b> <code class="inline">application/json</code>.</p>
+      </section>
+
+      <section id="auth" class="panel">
+        <h2>AUTENTIKASI</h2>
+        <p>Buat API key di halaman <a href="/developer">Developer</a>. Kirim key dengan salah satu cara berikut (disarankan header):</p>
+        <ul>
+          <li>Header <code class="inline">X-API-Key: ap_live_xxx</code></li>
+          <li>Header <code class="inline">Authorization: Bearer ap_live_xxx</code></li>
+          <li>Field body <code class="inline">api_key=ap_live_xxx</code> (mirip format Atlantic)</li>
+        </ul>
+        <div class="alert error"><b>PENTING!</b>Jangan taruh API key di kode frontend/HTML publik. Panggil API dari server atau bot kamu saja.</div>
+      </section>
+
+      <section id="format" class="panel">
+        <h2>FORMAT RESPON</h2>
+        <p>Sukses:</p>
+        <%- json({ status: true, code: 200, data: { '...': '...' } }) %>
+        <p>Gagal:</p>
+        <%- json({ status: false, code: 400, message: 'Nominal deposit minimal Rp 2.000 dan maksimal Rp 10.000.000' }) %>
+      </section>
+
+      <section id="rules" class="panel tone">
+        <h2>ATURAN &amp; LIMIT</h2>
+        <div class="table-wrap"><table><tbody>
+          <tr><td>Deposit / QRIS minimum</td><td class="num"><b><%= rupiah(rules.depositMin) %></b></td></tr>
+          <tr><td>Deposit / QRIS maksimum</td><td class="num"><b><%= rupiah(rules.depositMax) %></b></td></tr>
+          <tr><td>Penarikan minimum</td><td class="num"><b><%= rupiah(rules.withdrawMin) %></b></td></tr>
+          <tr><td>Biaya admin penarikan</td><td class="num"><b><%= rupiah(rules.withdrawFee) %></b> / penarikan</td></tr>
+          <tr><td>Jam penarikan</td><td class="num"><b><%= rules.hours %></b></td></tr>
+          <tr><td>Rate limit</td><td class="num"><b>120 request / menit</b> per IP</td></tr>
+        </tbody></table></div>
+        <p class="small">Info ini juga tersedia tanpa API key di <code class="inline">GET <%= B %>/info</code>.</p>
+      </section>
+
+      <section id="dep-create" class="panel">
+        <span class="panel-tag">QRIS</span>
+        <div class="endpoint"><span class="method">POST</span><code class="inline">/deposit/create</code></div>
+        <h2>BUAT QRIS PEMBAYARAN</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">nominal</td><td>Ya</td><td>Jumlah dalam Rupiah (<%= rules.depositMin %> – <%= rules.depositMax %>)</td></tr>
+            <tr><td class="mono">merchant_ref</td><td>Tidak</td><td>ID order dari sistem kamu (unik, maks 64 karakter). Bisa dipakai untuk cek status.</td></tr>
+            <tr><td class="mono">callback_url</td><td>Tidak</td><td>URL webhook khusus untuk transaksi ini (menimpa URL default di halaman Developer)</td></tr>
+          </tbody>
+        </table></div>
+        <%- tabs({
+'cURL': `curl -X POST ${B}/deposit/create \\
+  -H "X-API-Key: ap_live_xxxxxxxx" \\
+  -d "nominal=10000" \\
+  -d "merchant_ref=ORDER-1001"`,
+'Node.js': `const axios = require('axios');
+
+const res = await axios.post('${B}/deposit/create',
+  { nominal: 10000, merchant_ref: 'ORDER-1001' },
+  { headers: { 'X-API-Key': process.env.ARTAPEDIA_KEY } });
+
+console.log(res.data.data.qr_image);   // URL gambar QR
+console.log(res.data.data.qr_string);  // string QRIS (bisa di-generate jadi QR sendiri)`,
+'PHP': `<?php
+$ch = curl_init('${B}/deposit/create');
+curl_setopt_array($ch, [
+  CURLOPT_POST => true,
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => ['X-API-Key: ap_live_xxxxxxxx'],
+  CURLOPT_POSTFIELDS => http_build_query(['nominal' => 10000, 'merchant_ref' => 'ORDER-1001']),
+]);
+$res = json_decode(curl_exec($ch), true);
+echo $res['data']['qr_image'];`,
+'Python': `import requests
+
+r = requests.post("${B}/deposit/create",
+    headers={"X-API-Key": "ap_live_xxxxxxxx"},
+    data={"nominal": 10000, "merchant_ref": "ORDER-1001"})
+print(r.json()["data"]["qr_string"])`
+}) %>
+        <p>Contoh respon:</p>
+        <%- json({ status: true, code: 200, data: { id: 'DEPMG3K2ABC1234567890', merchant_ref: 'ORDER-1001', nominal: 10000, fee: 0, amount_received: 0, qr_string: '00020101021226...', qr_image: 'https://atlantich2h.com/qr/xxxx', status: 'pending', source: 'api', created_at: '2026-09-23 10:00:00', expired_at: '2026-09-23 11:00:00', paid_at: null } }) %>
+        <p class="small">Tampilkan <code class="inline">qr_image</code> ke customer, atau buat gambar QR sendiri dari <code class="inline">qr_string</code>. Saldo yang masuk = <code class="inline">amount_received</code> (nominal − biaya QRIS) setelah status <span class="badge success">SUCCESS</span>.</p>
+      </section>
+
+      <section id="dep-status" class="panel">
+        <div class="endpoint"><span class="method">POST</span><code class="inline">/deposit/status</code></div>
+        <h2>CEK STATUS QRIS</h2>
+        <p>Parameter <code class="inline">id</code> = <code class="inline">id</code> dari respon create <b>atau</b> <code class="inline">merchant_ref</code> kamu.</p>
+        <%- tabs({
+'cURL': `curl -X POST ${B}/deposit/status \\
+  -H "X-API-Key: ap_live_xxxxxxxx" \\
+  -d "id=ORDER-1001"`,
+'Node.js': `const { data } = await axios.post('${B}/deposit/status',
+  { id: 'ORDER-1001' }, { headers: { 'X-API-Key': KEY } });
+if (data.data.status === 'success') console.log('LUNAS!');`
+}) %>
+        <%- json({ status: true, code: 200, data: { id: 'DEPMG3K2ABC1234567890', merchant_ref: 'ORDER-1001', nominal: 10000, fee: 70, amount_received: 9930, status: 'success', paid_at: '2026-09-23 10:02:11' } }) %>
+        <p class="small">Tidak perlu polling terus-menerus: sistem kami otomatis mengecek status dan mengirim <a href="#webhook">webhook</a> saat lunas.</p>
+      </section>
+
+      <section id="dep-cancel" class="panel">
+        <div class="endpoint"><span class="method">POST</span><code class="inline">/deposit/cancel</code></div>
+        <h2>BATALKAN QRIS</h2>
+        <p>Parameter: <code class="inline">id</code> (id / merchant_ref). Hanya untuk status <span class="badge pending">PENDING</span>.</p>
+        <%- tabs({ 'cURL': `curl -X POST ${B}/deposit/cancel -H "X-API-Key: ap_live_xxx" -d "id=ORDER-1001"` }) %>
+      </section>
+
+      <section id="dep-list" class="panel">
+        <div class="endpoint"><span class="method get">GET</span><code class="inline">/deposit/list?limit=20</code></div>
+        <h2>DAFTAR QRIS</h2>
+        <p>Mengambil maksimal 100 QRIS terbaru milik akun kamu.</p>
+      </section>
+
+      <section id="wd-banks" class="panel">
+        <span class="panel-tag">PENARIKAN</span>
+        <div class="endpoint"><span class="method get">GET</span><code class="inline">/withdraw/banks</code></div>
+        <h2>DAFTAR BANK &amp; E-WALLET</h2>
+        <%- tabs({ 'cURL': `curl ${B}/withdraw/banks -H "X-API-Key: ap_live_xxx"` }) %>
+        <%- json({ status: true, code: 200, data: [{ id: '1', bank_code: 'mandiri', bank_name: 'Bank Mandiri', type: 'bank' }, { id: '2', bank_code: 'dana', bank_name: 'DANA', type: 'ewallet' }] }) %>
+      </section>
+
+      <section id="wd-check" class="panel">
+        <div class="endpoint"><span class="method">POST</span><code class="inline">/withdraw/check-account</code></div>
+        <h2>CEK REKENING</h2>
+        <p>Parameter: <code class="inline">bank_code</code>, <code class="inline">account_number</code>.</p>
+        <%- tabs({ 'cURL': `curl -X POST ${B}/withdraw/check-account \\
+  -H "X-API-Key: ap_live_xxx" \\
+  -d "bank_code=dana" -d "account_number=081234567890"` }) %>
+        <%- json({ status: true, code: 200, data: { kode_bank: 'dana', nomor_akun: '081234567890', nama_pemilik: 'BUDI SXXXXX', status: 'valid' } }) %>
+      </section>
+
+      <section id="wd-create" class="panel">
+        <div class="endpoint"><span class="method">POST</span><code class="inline">/withdraw/create</code></div>
+        <h2>TARIK SALDO (OTOMATIS)</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Parameter</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">bank_code</td><td>Ya</td><td>Kode dari <a href="#wd-banks">daftar bank</a></td></tr>
+            <tr><td class="mono">account_number</td><td>Ya</td><td>Nomor rekening / nomor HP e-wallet</td></tr>
+            <tr><td class="mono">amount</td><td>Ya</td><td>Nominal yang diterima tujuan, min <%= rupiah(rules.withdrawMin) %></td></tr>
+            <tr><td class="mono">merchant_ref</td><td>Tidak</td><td>ID unik dari sistem kamu</td></tr>
+          </tbody>
+        </table></div>
+        <p>Saldo terpotong = <code class="inline">amount + <%= rules.withdrawFee %></code> (biaya admin). Hanya bisa <b><%= rules.hours %></b>. Nama pemilik rekening dicek otomatis. Jika gagal, saldo dikembalikan otomatis.</p>
+        <%- tabs({
+'cURL': `curl -X POST ${B}/withdraw/create \\
+  -H "X-API-Key: ap_live_xxx" \\
+  -d "bank_code=dana" \\
+  -d "account_number=081234567890" \\
+  -d "amount=50000"`,
+'Node.js': `const { data } = await axios.post('${B}/withdraw/create',
+  { bank_code: 'dana', account_number: '081234567890', amount: 50000 },
+  { headers: { 'X-API-Key': KEY } });
+console.log(data.data.status); // pending / success`
+}) %>
+        <%- json({ status: true, code: 200, data: { id: 'WDMG3K9XYZ12345678', merchant_ref: null, bank_code: 'dana', account_number: '081234567890', account_name: 'BUDI SXXXXX', amount: 50000, admin_fee: rules.withdrawFee, total: 50000 + rules.withdrawFee, status: 'pending', source: 'api' } }) %>
+      </section>
+
+      <section id="wd-status" class="panel">
+        <div class="endpoint"><span class="method">POST</span><code class="inline">/withdraw/status</code></div>
+        <h2>STATUS PENARIKAN</h2>
+        <p>Parameter: <code class="inline">id</code> (id / merchant_ref). Daftar penarikan: <code class="inline">GET /withdraw/list?limit=20</code>.</p>
+      </section>
+
+      <section id="profile" class="panel">
+        <div class="endpoint"><span class="method get">GET</span><code class="inline">/profile</code> <span class="small">(alias: <code class="inline">/balance</code>)</span></div>
+        <h2>PROFIL &amp; SALDO</h2>
+        <%- tabs({ 'cURL': `curl ${B}/profile -H "X-API-Key: ap_live_xxx"` }) %>
+        <%- json({ status: true, code: 200, data: { username: 'arta_store', email: 'arta@gmail.com', balance: 150000, created_at: '2026-09-01 08:00:00' } }) %>
+      </section>
+
+      <section id="mutations" class="panel">
+        <div class="endpoint"><span class="method get">GET</span><code class="inline">/mutations?limit=50</code></div>
+        <h2>MUTASI SALDO</h2>
+        <p>Riwayat perubahan saldo: <code class="inline">deposit</code>, <code class="inline">withdraw</code>, <code class="inline">refund</code>, <code class="inline">admin</code>.</p>
+      </section>
+
+      <section id="webhook" class="panel tone">
+        <span class="panel-tag">CALLBACK</span>
+        <h2>WEBHOOK CALLBACK</h2>
+        <p>Atur URL webhook di halaman <a href="/developer">Developer</a> (atau kirim <code class="inline">callback_url</code> per transaksi). Kami mengirim <b>POST JSON</b> dengan header:</p>
+        <ul>
+          <li><code class="inline">X-Artapedia-Event</code>: <code class="inline">deposit.success</code>, <code class="inline">deposit.expired</code>, <code class="inline">deposit.cancel</code>, <code class="inline">deposit.failed</code>, <code class="inline">withdraw.success</code>, <code class="inline">withdraw.failed</code></li>
+          <li><code class="inline">X-Artapedia-Signature</code>: HMAC-SHA256 (hex) dari raw body, dengan kunci = webhook secret kamu</li>
+        </ul>
+        <%- json({ event: 'deposit.success', data: { id: 'DEPMG3K2ABC1234567890', merchant_ref: 'ORDER-1001', nominal: 10000, fee: 70, amount_received: 9930, status: 'success', paid_at: '2026-09-23 10:02:11' }, sent_at: '2026-09-23T03:02:12.000Z' }) %>
+        <p>Balas dengan HTTP 2xx. Jika gagal, dikirim ulang hingga 3 kali. <b>Selalu verifikasi signature!</b></p>
+        <%- tabs({
+'Node.js (Express)': `const crypto = require('crypto');
+app.post('/callback', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = crypto.createHmac('sha256', process.env.ARTAPEDIA_WEBHOOK_SECRET)
+    .update(req.body).digest('hex');
+  if (sig !== req.get('X-Artapedia-Signature')) return res.sendStatus(401);
+
+  const { event, data } = JSON.parse(req.body);
+  if (event === 'deposit.success') {
+    // tandai order data.merchant_ref sebagai LUNAS
+  }
+  res.sendStatus(200);
+});`,
+'PHP': `<?php
+$raw = file_get_contents('php://input');
+$sig = hash_hmac('sha256', $raw, 'WEBHOOK_SECRET_KAMU');
+if (!hash_equals($sig, $_SERVER['HTTP_X_ARTAPEDIA_SIGNATURE'] ?? '')) { http_response_code(401); exit; }
+$body = json_decode($raw, true);
+if ($body['event'] === 'deposit.success') {
+  // tandai order $body['data']['merchant_ref'] sebagai LUNAS
+}
+http_response_code(200);`,
+'Python (Flask)': `import hmac, hashlib
+@app.post("/callback")
+def callback():
+    raw = request.get_data()
+    sig = hmac.new(b"WEBHOOK_SECRET_KAMU", raw, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, request.headers.get("X-Artapedia-Signature", "")):
+        return "", 401
+    body = request.get_json()
+    if body["event"] == "deposit.success":
+        pass  # tandai order LUNAS
+    return "", 200`
+}) %>
+      </section>
+
+      <section id="status" class="panel">
+        <h2>DAFTAR STATUS</h2>
+        <div class="table-wrap"><table><tbody>
+          <tr><td><span class="badge pending">PENDING</span></td><td>Menunggu pembayaran / sedang diproses</td></tr>
+          <tr><td><span class="badge success">SUCCESS</span></td><td>Berhasil. Untuk deposit, saldo sudah masuk</td></tr>
+          <tr><td><span class="badge expired">EXPIRED</span></td><td>QRIS kedaluwarsa, tidak dibayar</td></tr>
+          <tr><td><span class="badge cancel">CANCEL</span></td><td>Dibatalkan</td></tr>
+          <tr><td><span class="badge failed">FAILED</span></td><td>Gagal. Untuk penarikan, saldo dikembalikan otomatis</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section id="errors" class="panel">
+        <h2>KODE ERROR</h2>
+        <div class="table-wrap"><table><tbody>
+          <tr><td class="mono">400</td><td>Parameter salah / aturan tidak terpenuhi (nominal, jam penarikan, saldo kurang)</td></tr>
+          <tr><td class="mono">401</td><td>API key tidak valid / dicabut</td></tr>
+          <tr><td class="mono">403</td><td>Akun diblokir</td></tr>
+          <tr><td class="mono">404</td><td>Transaksi / endpoint tidak ditemukan</td></tr>
+          <tr><td class="mono">429</td><td>Terlalu banyak request</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section id="bot" class="panel yellow">
+        <span class="panel-tag">BONUS</span>
+        <h2>CONTOH BOT TELEGRAM (Node.js)</h2>
+        <p>Bot sederhana: user ketik <code class="inline">/bayar 10000</code>, bot kirim gambar QRIS lalu memberi tahu saat lunas.</p>
+        <%- tabs({ 'Node.js': `// npm i telegraf axios
+const { Telegraf } = require('telegraf');
+const axios = require('axios');
+
+const api = axios.create({
+  baseURL: '${B}',
+  headers: { 'X-API-Key': process.env.ARTAPEDIA_KEY },
+});
+const bot = new Telegraf(process.env.BOT_TOKEN);
+
+bot.command('bayar', async (ctx) => {
+  const nominal = parseInt(ctx.message.text.split(' ')[1], 10);
+  try {
+    const { data } = await api.post('/deposit/create', { nominal });
+    const dep = data.data;
+    await ctx.replyWithPhoto(dep.qr_image, {
+      caption: \`Scan QRIS ini untuk bayar Rp \${dep.nominal.toLocaleString('id-ID')}\\nID: \${dep.id}\`,
+    });
+
+    // cek status tiap 10 detik (maks 30 menit)
+    let n = 0;
+    const timer = setInterval(async () => {
+      const s = (await api.post('/deposit/status', { id: dep.id })).data.data;
+      if (s.status !== 'pending' || ++n > 180) {
+        clearInterval(timer);
+        ctx.reply(s.status === 'success' ? '✅ Pembayaran diterima!' : '❌ Transaksi ' + s.status);
+      }
+    }, 10000);
+  } catch (e) {
+    ctx.reply('Gagal: ' + (e.response?.data?.message || e.message));
+  }
+});
+
+bot.launch();` }) %>
+      </section>
+    </div>
+  </div>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">PENGGUNA</h1></div>
+  <%- include('nav') %>
+  <div class="panel">
+    <form class="row" method="get" action="/admin/users" style="margin-bottom:16px">
+      <input class="input grow" name="q" value="<%= q %>" placeholder="Cari username / email">
+      <button class="btn" type="submit">CARI</button>
+    </form>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>User</th><th>Login</th><th class="num">Saldo</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>
+      <% users.forEach(function (u) { %>
+        <tr>
+          <td><%= u.id %></td>
+          <td><b><%= u.username %></b><div class="hint"><%= u.email %></div><div class="hint"><%= u.created_at %></div></td>
+          <td class="small"><%= [u.password_hash ? 'Password' : null, u.google_id ? 'Google' : null, u.github_id ? 'GitHub' : null].filter(Boolean).join(', ') %></td>
+          <td class="num"><%= rupiah(u.balance) %></td>
+          <td><% if (u.role === 'admin') { %><span class="badge admin">ADMIN</span><% } %> <% if (u.banned) { %><span class="badge banned">BANNED</span><% } else { %><span class="badge success">AKTIF</span><% } %></td>
+          <td>
+            <div class="row">
+              <form method="post" action="/admin/users/<%= u.id %>/ban" data-confirm="<%= u.banned ? 'Buka blokir' : 'Blokir' %> <%= u.username %>?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm <%= u.banned ? 'green' : 'red' %>" type="submit"><%= u.banned ? 'UNBAN' : 'BAN' %></button></form>
+              <form method="post" action="/admin/users/<%= u.id %>/role" data-confirm="Ubah role <%= u.username %>?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm white" type="submit"><%= u.role === 'admin' ? 'JADIKAN USER' : 'JADIKAN ADMIN' %></button></form>
+            </div>
+            <details class="inline-form"><summary>ATUR SALDO</summary>
+              <form method="post" action="/admin/users/<%= u.id %>/balance" data-confirm="Ubah saldo <%= u.username %>?">
+                <input type="hidden" name="_csrf" value="<%= csrf %>">
+                <select class="input" name="op"><option value="add">Tambah (+)</option><option value="sub">Kurangi (−)</option></select>
+                <input class="input" name="amount" inputmode="numeric" data-rupiah placeholder="Nominal" required>
+                <input class="input" name="reason" placeholder="Alasan">
+                <button class="btn sm" type="submit">SIMPAN</button>
+              </form>
+            </details>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table></div>
+  </div>
+</main>
+<%- include('../partials/footer') %>

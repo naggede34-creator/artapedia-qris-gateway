@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Artapedia QRIS Gateway</title>
+  <meta name="description" content="Artapedia QRIS Gateway — terima pembayaran QRIS tanpa KTP, API untuk web & bot, penarikan otomatis.">
+  <meta name="csrf" content="<%= typeof csrf !== 'undefined' ? csrf : '' %>">
+  <link rel="icon" href="/public/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+<% const u = typeof user !== 'undefined' ? user : null; const p = typeof path !== 'undefined' ? path : ''; %>
+<nav class="nav">
+  <div class="container">
+    <a class="logo" href="/">
+      <span class="logo-cube"><span class="cube"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></span></span>
+      <span>ARTA<b>PEDIA</b></span>
+    </a>
+    <button class="btn sm white nav-toggle" type="button" aria-label="Menu">☰ MENU</button>
+    <div class="nav-links">
+      <a href="/docs" class="<%= p === '/docs' ? 'active' : '' %>">API DOCS</a>
+      <% if (u) { %>
+        <a href="/dashboard" class="<%= p === '/dashboard' ? 'active' : '' %>">DASHBOARD</a>
+        <a href="/deposit" class="<%= p.startsWith('/deposit') ? 'active' : '' %>">BUAT QRIS</a>
+        <a href="/withdraw" class="<%= p === '/withdraw' ? 'active' : '' %>">TARIK</a>
+        <a href="/developer" class="<%= p === '/developer' ? 'active' : '' %>">API KEY</a>
+        <% if (u.role === 'admin') { %><a href="/admin" class="<%= p.startsWith('/admin') ? 'active' : '' %>">ADMIN</a><% } %>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike" type="submit">KELUAR</button></form>
+      <% } else { %>
+        <a href="/login" class="<%= p === '/login' ? 'active' : '' %>">MASUK</a>
+        <a href="/register" class="btn sm red">DAFTAR GRATIS</a>
+      <% } %>
+    </div>
+  </div>
+</nav>

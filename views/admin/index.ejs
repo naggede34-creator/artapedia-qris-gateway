@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">ADMIN HQ</h1></div>
+  <%- include('nav') %>
+  <div class="grid four">
+    <div class="panel stat balance-card" data-tilt style="--i:0"><div class="label">SALDO SEMUA USER</div><div class="value"><%= rupiah(stats.balance) %></div></div>
+    <div class="panel stat" data-tilt style="--i:1"><div class="label">PENGGUNA</div><div class="value"><%= stats.users %></div></div>
+    <div class="panel stat" data-tilt style="--i:2"><div class="label">DEPOSIT HARI INI</div><div class="value"><%= rupiah(stats.depToday.s) %></div><div class="small muted"><%= stats.depToday.c %> trx</div></div>
+    <div class="panel stat" data-tilt style="--i:3"><div class="label">TOTAL DEPOSIT</div><div class="value"><%= rupiah(stats.depAll.s) %></div><div class="small muted"><%= stats.depAll.c %> trx</div></div>
+    <div class="panel stat" data-tilt style="--i:4"><div class="label">TOTAL PENARIKAN</div><div class="value"><%= rupiah(stats.wdAll.s) %></div><div class="small muted"><%= stats.wdAll.c %> trx</div></div>
+    <div class="panel stat yellow" data-tilt style="--i:5"><div class="label" style="color:#111">PENDAPATAN ADMIN WD</div><div class="value"><%= rupiah(stats.wdAll.f) %></div></div>
+    <div class="panel stat" data-tilt style="--i:6"><div class="label">PENDING</div><div class="value"><%= stats.pendingDep %> / <%= stats.pendingWd %></div><div class="small muted">deposit / penarikan</div></div>
+    <div class="panel stat cyan" data-tilt style="--i:7"><div class="label" style="color:#111">SALDO ATLANTIC</div><div class="value"><%= atl && atl.balance !== undefined ? rupiah(atl.balance) : '—' %></div><div class="small">Pastikan cukup untuk penarikan user</div></div>
+  </div>
+  <div class="grid two" style="margin-top:30px">
+    <div class="panel"><span class="panel-tag">DEPOSIT TERBARU</span>
+      <div class="table-wrap"><table><thead><tr><th>User</th><th class="num">Nominal</th><th>Status</th></tr></thead><tbody>
+      <% recentDep.forEach(function (d) { %><tr><td><%= d.username %><div class="hint mono"><%= d.reff_id %></div></td><td class="num"><%= rupiah(d.nominal) %></td><td><span class="badge <%= d.status %>"><%= d.status.toUpperCase() %></span></td></tr><% }) %>
+      </tbody></table></div></div>
+    <div class="panel"><span class="panel-tag">PENARIKAN TERBARU</span>
+      <div class="table-wrap"><table><thead><tr><th>User</th><th class="num">Nominal</th><th>Status</th></tr></thead><tbody>
+      <% recentWd.forEach(function (w) { %><tr><td><%= w.username %><div class="hint"><%= w.bank_code %> · <%= w.account_number %></div></td><td class="num"><%= rupiah(w.amount) %></td><td><span class="badge <%= w.status %>"><%= w.status.toUpperCase() %></span></td></tr><% }) %>
+      </tbody></table></div></div>
+  </div>
+</main>
+<%- include('../partials/footer') %>

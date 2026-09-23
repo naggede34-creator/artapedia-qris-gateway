@@ -1,0 +1,47 @@
+<%- include('partials/header') %>
+<main class="container">
+  <%- include('partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">DEVELOPER ZONE</h1><a class="btn white" href="/docs">📘 API DOCS</a></div>
+  <% if (newKey) { %>
+    <div class="panel yellow" style="margin-bottom:30px">
+      <span class="panel-tag">API KEY BARU!</span>
+      <p><b>Salin sekarang!</b> Demi keamanan, key ini hanya ditampilkan sekali.</p>
+      <div class="key-box"><code id="newkey"><%= newKey %></code><button class="btn sm" type="button" data-copy-from="#newkey">SALIN</button></div>
+    </div>
+  <% } %>
+  <div class="grid two">
+    <div class="panel" style="--i:0">
+      <span class="panel-tag">API KEY</span>
+      <form class="row" method="post" action="/developer/keys" style="margin-bottom:18px">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input class="input grow" name="name" maxlength="50" placeholder="Nama key, mis: Bot Telegram" required>
+        <button class="btn red" type="submit">+ BUAT KEY</button>
+      </form>
+      <% if (!keys.length) { %><div class="empty">Belum ada API key.</div><% } else { %>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Nama</th><th>Key</th><th>Terakhir dipakai</th><th></th></tr></thead>
+        <tbody>
+        <% keys.forEach(function (k) { %>
+          <tr><td><%= k.name %></td><td class="mono"><%= k.key_prefix %>…</td><td class="small"><%= k.last_used_at || '-' %></td>
+            <td><% if (k.revoked) { %><span class="badge failed">DICABUT</span><% } else { %>
+              <form method="post" action="/developer/keys/<%= k.id %>/revoke" data-confirm="Cabut API key ini? Aplikasi yang memakainya akan berhenti bekerja.">
+                <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sm red" type="submit">CABUT</button></form><% } %></td></tr>
+        <% }) %>
+        </tbody>
+      </table></div>
+      <% } %>
+    </div>
+    <div class="panel tone" style="--i:1">
+      <span class="panel-tag">WEBHOOK CALLBACK</span>
+      <p class="small">Kami akan POST JSON ke URL ini saat deposit/penarikan berubah status. Verifikasi header <code class="inline">X-Artapedia-Signature</code> (HMAC-SHA256 body dengan secret di bawah).</p>
+      <form class="form" method="post" action="/developer/webhook">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field"><label for="webhook_url">URL WEBHOOK</label><input class="input" id="webhook_url" name="webhook_url" type="url" value="<%= user.webhook_url || '' %>" placeholder="https://webkamu.com/callback"></div>
+        <div class="field"><label>SECRET</label><div class="key-box"><code id="whsecret"><%= user.webhook_secret %></code><button class="btn sm" type="button" data-copy-from="#whsecret">SALIN</button></div></div>
+        <label class="small"><input type="checkbox" name="regenerate" value="1"> Buat ulang secret</label>
+        <button class="btn" type="submit">SIMPAN</button>
+      </form>
+    </div>
+  </div>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,45 @@
+require('dotenv').config({ quiet: true });
+
+const int = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
+
+module.exports = {
+  port: int(process.env.PORT, 3000),
+  baseUrl: (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  adminEmails: (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+  dbPath: process.env.DB_PATH || require('path').join(__dirname, '..', 'data', 'artapedia.db'),
+
+  atlantic: {
+    baseUrl: (process.env.ATLANTIC_BASE_URL || 'https://atlantich2h.com').replace(/\/$/, ''),
+    apiKey: process.env.ATLANTIC_API_KEY || '',
+  },
+
+  telegram: {
+    token: process.env.TELEGRAM_BOT_TOKEN || '',
+    chatId: process.env.TELEGRAM_CHAT_ID || '',
+  },
+
+  google: {
+    clientID: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  },
+  github: {
+    clientID: process.env.GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+  },
+
+  rules: {
+    depositMin: int(process.env.DEPOSIT_MIN, 2000),
+    depositMax: int(process.env.DEPOSIT_MAX, 10000000),
+    withdrawMin: int(process.env.WITHDRAW_MIN, 10000),
+    withdrawFee: int(process.env.WITHDRAW_FEE, 2000),
+    withdrawOpenHour: int(process.env.WITHDRAW_OPEN_HOUR, 8),
+    withdrawCloseHour: int(process.env.WITHDRAW_CLOSE_HOUR, 16),
+    timezone: process.env.TIMEZONE || 'Asia/Jakarta',
+  },
+
+  pollInterval: int(process.env.POLL_INTERVAL, 20),
+};

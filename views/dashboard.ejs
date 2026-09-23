@@ -1,0 +1,18 @@
+<%- include('partials/header') %>
+<main class="container">
+  <%- include('partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">HALO, <%= user.username.toUpperCase() %>!</h1>
+    <div class="row"><a class="btn red" href="/deposit">⚡ BUAT QRIS</a><a class="btn cyan" href="/withdraw">💸 TARIK SALDO</a></div></div>
+  <div class="grid four">
+    <div class="panel stat balance-card" data-tilt style="--i:0"><div class="label">SALDO AKTIF</div><div class="value"><%= rupiah(user.balance) %></div></div>
+    <div class="panel stat" data-tilt style="--i:1"><div class="label">TOTAL MASUK</div><div class="value"><%= rupiah(stats.depSum.s) %></div><div class="small muted"><%= stats.depSum.c %> deposit sukses</div></div>
+    <div class="panel stat" data-tilt style="--i:2"><div class="label">TOTAL DITARIK</div><div class="value"><%= rupiah(stats.wdSum.s) %></div><div class="small muted"><%= stats.wdSum.c %> penarikan</div></div>
+    <div class="panel stat yellow" data-tilt style="--i:3"><div class="label" style="color:#111">QRIS PENDING</div><div class="value"><%= stats.pending %></div><div class="small">Penarikan: <b><%= rules.open ? 'BUKA' : 'TUTUP' %></b> (<%= rules.hours %>)</div></div>
+  </div>
+  <div class="panel" style="margin-top:30px;--i:4">
+    <span class="panel-tag">MUTASI TERBARU</span>
+    <div class="row" style="justify-content:flex-end;margin-bottom:10px"><a class="btn sm white" href="/history">LIHAT SEMUA</a></div>
+    <%- include('partials/mutations') %>
+  </div>
+</main>
+<%- include('partials/footer') %>

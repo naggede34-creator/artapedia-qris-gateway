@@ -1,0 +1,34 @@
+<%- include('../partials/header') %>
+<main class="container">
+  <%- include('../partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">BACKUP &amp; RESTORE</h1></div>
+  <%- include('nav') %>
+  <div class="grid two">
+    <div class="panel" data-tilt style="--i:0">
+      <span class="panel-tag">EKSPOR</span>
+      <h3>DOWNLOAD BACKUP</h3>
+      <p><b>Backup penuh (.json)</b> berisi semua pengguna, API key (ter-hash), deposit, penarikan &amp; mutasi. Simpan di tempat aman — file ini berisi data sensitif.</p>
+      <div class="row">
+        <a class="btn red" href="/admin/backup/export.json">💾 BACKUP PENUH (.JSON)</a>
+        <a class="btn white" href="/admin/backup/users.csv">📄 PENGGUNA (.CSV)</a>
+      </div>
+    </div>
+    <div class="panel tone" style="--i:1">
+      <span class="panel-tag">IMPOR</span>
+      <h3>UPLOAD BACKUP</h3>
+      <form class="form" method="post" action="/admin/backup/import" enctype="multipart/form-data" data-confirm="Lanjutkan import?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field"><label for="file">FILE (.json / .csv)</label><input class="input" id="file" type="file" name="file" accept=".json,.csv,application/json,text/csv" required></div>
+        <div class="field"><label for="mode">MODE</label>
+          <select class="input" id="mode" name="mode">
+            <option value="merge">Gabungkan pengguna (tambah yang belum ada)</option>
+            <option value="replace">Restore penuh (HAPUS semua data lalu ganti dari backup .json)</option>
+          </select></div>
+        <div class="field"><label for="confirm">KONFIRMASI (khusus restore penuh)</label><input class="input" id="confirm" name="confirm" placeholder="ketik RESTORE"></div>
+        <button class="btn" type="submit" >⬆️ IMPOR</button>
+      </form>
+      <p class="hint">Format CSV: kolom <code class="inline">username,email,role,balance,banned</code> (+ opsional <code class="inline">password</code> untuk set password awal).</p>
+    </div>
+  </div>
+</main>
+<%- include('../partials/footer') %>

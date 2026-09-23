@@ -1,0 +1,11 @@
+<% if (!mutations.length) { %><div class="empty">Belum ada mutasi saldo.</div><% } else { %>
+<div class="table-wrap"><table>
+  <thead><tr><th>Waktu</th><th>Jenis</th><th>Keterangan</th><th class="num">Jumlah</th><th class="num">Saldo</th></tr></thead>
+  <tbody>
+  <% mutations.forEach(function (m) { %>
+    <tr><td class="small"><%= m.created_at %></td><td><span class="badge"><%= m.type.toUpperCase() %></span></td><td class="small"><%= m.description %></td>
+      <td class="num <%= m.amount >= 0 ? 'plus' : 'minus' %>"><%= m.amount >= 0 ? '+' : '−' %><%= rupiah(Math.abs(m.amount)) %></td><td class="num"><%= rupiah(m.balance_after) %></td></tr>
+  <% }) %>
+  </tbody>
+</table></div>
+<% } %>

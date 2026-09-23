@@ -1,0 +1,57 @@
+<%- include('partials/header') %>
+<main class="container">
+  <%- include('partials/flash') %>
+  <div class="page-head"><h1 class="text-3d">TARIK SALDO</h1>
+    <span class="chip <%= rules.open ? 'cyan' : 'red' %>"><%= rules.open ? '🟢 BUKA' : '🔴 TUTUP' %> · <%= rules.hours %></span></div>
+  <div class="grid two">
+    <div class="panel" data-tilt style="--i:0">
+      <span class="panel-tag">PENARIKAN OTOMATIS</span>
+      <p>Saldo kamu: <b><%= rupiah(user.balance) %></b></p>
+      <form class="form" method="post" action="/withdraw" data-confirm="Yakin tarik saldo? Pastikan rekening sudah benar.">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="field"><label for="bank_code">BANK / E-WALLET</label>
+          <select class="input" id="bank_code" name="bank_code" required>
+            <option value="">— pilih —</option>
+            <% ['ewallet', 'bank'].forEach(function (t) { const items = banks.filter(function (b) { return (b.type || 'bank') === t; }); if (items.length) { %>
+              <optgroup label="<%= t === 'ewallet' ? 'E-Wallet' : 'Bank' %>">
+                <% items.forEach(function (b) { %><option value="<%= b.bank_code %>"><%= b.bank_name %></option><% }) %>
+              </optgroup>
+            <% } }) %>
+          </select></div>
+        <div class="field"><label for="account_number">NOMOR REKENING / HP</label>
+          <div class="row"><input class="input grow" id="account_number" name="account_number" inputmode="numeric" required>
+          <button class="btn sm white" type="button" id="check-account">CEK</button></div>
+          <div id="account-result" class="hint">Nama pemilik dicek otomatis saat penarikan.</div></div>
+        <div class="field"><label for="wd-amount">NOMINAL (Rp)</label>
+          <input class="input" id="wd-amount" name="amount" inputmode="numeric" data-rupiah data-fee="<%= rules.withdrawFee %>" required placeholder="10.000">
+          <div class="hint">Min <%= rupiah(rules.withdrawMin) %> · Biaya admin <%= rupiah(rules.withdrawFee) %> per penarikan · Saldo terpotong: <b id="wd-total">Rp 0</b></div></div>
+        <button class="btn red block" type="submit" <%= rules.open ? '' : 'disabled' %>><%= rules.open ? '💸 TARIK SEKARANG' : 'PENARIKAN TUTUP' %></button>
+      </form>
+    </div>
+    <div class="panel tone" style="--i:1">
+      <span class="panel-tag">ATURAN</span>
+      <ul>
+        <li>Minimal penarikan <b><%= rupiah(rules.withdrawMin) %></b>.</li>
+        <li>Biaya admin <b><%= rupiah(rules.withdrawFee) %></b> per penarikan (dipotong dari saldo).</li>
+        <li>Jam operasional <b><%= rules.hours %></b> setiap hari.</li>
+        <li>Diproses <b>otomatis</b>. Jika gagal, saldo dikembalikan otomatis.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:30px;--i:2">
+    <span class="panel-tag">RIWAYAT PENARIKAN</span>
+    <% if (!list.length) { %><div class="empty">Belum ada penarikan.</div><% } else { %>
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Tujuan</th><th class="num">Nominal</th><th class="num">Admin</th><th>Status</th><th>Waktu</th></tr></thead>
+      <tbody>
+      <% list.forEach(function (w) { %>
+        <tr><td class="mono"><%= w.ref_id %></td><td class="small"><b><%= w.bank_code.toUpperCase() %></b> <%= w.account_number %><br><%= w.account_name %></td>
+          <td class="num"><%= rupiah(w.amount) %></td><td class="num"><%= rupiah(w.admin_fee) %></td>
+          <td><span class="badge <%= w.status %>"><%= w.status.toUpperCase() %></span><% if (w.note) { %><div class="hint"><%= w.note %></div><% } %></td><td class="small"><%= w.created_at %></td></tr>
+      <% }) %>
+      </tbody>
+    </table></div>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/footer') %>
