@@ -3,12 +3,13 @@ const atlantic = require('../atlantic');
 const config = require('../config');
 const { notify } = require('../telegram');
 const { randomId, isWithdrawOpen, withdrawHoursText } = require('../utils');
+const { background } = require('../background');
 const { sendMerchantWebhook } = require('./merchantWebhook');
 
 const FAIL = ['failed', 'gagal', 'cancel', 'canceled', 'cancelled', 'refund', 'error', 'rejected'];
 
-const getUser = (id) => db.prepare('SELECT * FROM users WHERE id = ?').get(id);
-const getW = (id) => db.prepare('SELECT * FROM withdrawals WHERE id = ?').get(id);
+const getUser = (id) => db.get('SELECT * FROM users WHERE id = ?', id);
+const getW = (id) => db.get('SELECT * FROM withdrawals WHERE id = ?', id);
 
 function publicView(w) {
   return {
@@ -35,21 +36,35 @@ async function bankList() {
   return bankCache.data;
 }
 
-function failAndRefund(w, reason) {
-  const refunded = db.transaction(() => {
-    const r = db
-      .prepare("UPDATE withdrawals SET status='failed', note=?, done_at=datetime('now') WHERE id=? AND status IN ('pending','processing')")
-      .run(String(reason || '').slice(0, 250), w.id);
+async function failAndRefund(w, reason) {
+  const refunded = await db.tx(async (t) => {
+    const r = await t.run(
+      "UPDATE withdrawals SET status='failed', note=?, done_at=datetime('now') WHERE id=? AND status IN ('pending','processing')",
+      String(reason || '').slice(0, 250), w.id
+    );
     if (r.changes !== 1) return false;
-    changeBalance(w.user_id, w.total, 'refund', `Refund penarikan ${w.ref_id}`);
+    await changeBalance(t, w.user_id, w.total, 'refund', `Refund penarikan ${w.ref_id}`);
     return true;
-  })();
+  });
+  const fresh = await getW(w.id);
   if (refunded) {
-    const fresh = getW(w.id);
-    notify.withdrawFailed(fresh, getUser(w.user_id), reason);
-    sendMerchantWebhook(w.user_id, 'withdraw.failed', publicView(fresh));
+    background(notify.withdrawFailed(fresh, await getUser(w.user_id), reason));
+    background(sendMerchantWebhook(w.user_id, 'withdraw.failed', publicView(fresh)));
   }
-  return getW(w.id);
+  return fresh;
+}
+
+async function markSuccess(w) {
+  const r = await db.run(
+    "UPDATE withdrawals SET status='success', done_at=datetime('now') WHERE id=? AND status IN ('pending','processing')",
+    w.id
+  );
+  const fresh = await getW(w.id);
+  if (r.changes === 1) {
+    background(notify.withdrawSuccess(fresh, await getUser(w.user_id)));
+    background(sendMerchantWebhook(w.user_id, 'withdraw.success', publicView(fresh)));
+  }
+  return fresh;
 }
 
 async function createWithdrawal(user, p) {
@@ -63,7 +78,7 @@ async function createWithdrawal(user, p) {
   const accountNumber = String(p.accountNumber || '').replace(/[^\d]/g, '');
   if (!bankCode || accountNumber.length < 5) throw new Error('Kode bank / nomor rekening tidak valid');
   if (p.merchantRef) {
-    const dup = db.prepare('SELECT id FROM withdrawals WHERE user_id = ? AND merchant_ref = ?').get(user.id, p.merchantRef);
+    const dup = await db.get('SELECT id FROM withdrawals WHERE user_id = ? AND merchant_ref = ?', user.id, p.merchantRef);
     if (dup) throw new Error('merchant_ref sudah pernah dipakai');
   }
 
@@ -74,20 +89,19 @@ async function createWithdrawal(user, p) {
 
   const total = amount + withdrawFee;
   const refId = randomId('WD');
-  const id = db.transaction(() => {
-    const bal = changeBalance(user.id, -total, 'withdraw', `Penarikan ${refId} (+admin ${withdrawFee})`);
+  const id = await db.tx(async (t) => {
+    const bal = await changeBalance(t, user.id, -total, 'withdraw', `Penarikan ${refId} (+admin ${withdrawFee})`);
     if (bal === null) throw new Error(`Saldo tidak cukup. Dibutuhkan Rp ${total.toLocaleString('id-ID')} (termasuk biaya admin)`);
-    return db
-      .prepare(
-        `INSERT INTO withdrawals (user_id, ref_id, merchant_ref, bank_code, account_number, account_name, amount, admin_fee, total, source)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`
-      )
-      .run(user.id, refId, p.merchantRef || null, bankCode, accountNumber, accountName, amount, withdrawFee, total, p.source || 'web')
-      .lastInsertRowid;
-  })();
+    const r = await t.run(
+      `INSERT INTO withdrawals (user_id, ref_id, merchant_ref, bank_code, account_number, account_name, amount, admin_fee, total, source)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      user.id, refId, p.merchantRef || null, bankCode, accountNumber, accountName, amount, withdrawFee, total, p.source || 'web'
+    );
+    return r.lastInsertRowid;
+  });
 
-  let w = getW(id);
-  notify.withdrawPending(w, user);
+  let w = await getW(id);
+  background(notify.withdrawPending(w, user));
   try {
     const data = await atlantic.createTransfer({
       refId,
@@ -97,8 +111,8 @@ async function createWithdrawal(user, p) {
       amount,
       note: `Withdraw ${refId}`,
     });
-    db.prepare('UPDATE withdrawals SET atl_id = ? WHERE id = ?').run(data.id || null, id);
-    w = getW(id);
+    await db.run('UPDATE withdrawals SET atl_id = ? WHERE id = ?', data.id || null, id);
+    w = await getW(id);
     const st = String(data.status || '').toLowerCase();
     if (st === 'success') return markSuccess(w);
     if (FAIL.includes(st)) return failAndRefund(w, 'Ditolak oleh penyedia');
@@ -106,18 +120,6 @@ async function createWithdrawal(user, p) {
   } catch (err) {
     return failAndRefund(w, err.message);
   }
-}
-
-function markSuccess(w) {
-  const r = db
-    .prepare("UPDATE withdrawals SET status='success', done_at=datetime('now') WHERE id=? AND status IN ('pending','processing')")
-    .run(w.id);
-  const fresh = getW(w.id);
-  if (r.changes === 1) {
-    notify.withdrawSuccess(fresh, getUser(w.user_id));
-    sendMerchantWebhook(w.user_id, 'withdraw.success', publicView(fresh));
-  }
-  return fresh;
 }
 
 async function refreshWithdrawal(w) {
@@ -130,6 +132,6 @@ async function refreshWithdrawal(w) {
 }
 
 const findForUser = (userId, id) =>
-  db.prepare('SELECT * FROM withdrawals WHERE user_id = ? AND (ref_id = ? OR merchant_ref = ?)').get(userId, id, id);
+  db.get('SELECT * FROM withdrawals WHERE user_id = ? AND (ref_id = ? OR merchant_ref = ?)', userId, id, id);
 
 module.exports = { createWithdrawal, refreshWithdrawal, publicView, bankList, findForUser };

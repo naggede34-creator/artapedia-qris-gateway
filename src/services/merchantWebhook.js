@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { db } = require('../db');
 
 async function sendMerchantWebhook(userId, event, data, overrideUrl) {
-  const user = db.prepare('SELECT webhook_url, webhook_secret FROM users WHERE id = ?').get(userId);
+  const user = await db.get('SELECT webhook_url, webhook_secret FROM users WHERE id = ?', userId);
   const url = overrideUrl || (user && user.webhook_url);
   if (!url || !user) return;
   const body = JSON.stringify({ event, data, sent_at: new Date().toISOString() });
@@ -12,13 +12,13 @@ async function sendMerchantWebhook(userId, event, data, overrideUrl) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       await axios.post(url, body, {
-        timeout: 10000,
+        timeout: 8000,
         headers: { 'Content-Type': 'application/json', 'X-Artapedia-Event': event, 'X-Artapedia-Signature': signature },
       });
       return;
     } catch (err) {
       if (attempt === 3) console.error(`[webhook] gagal kirim ke ${url}:`, err.message);
-      else await new Promise((r) => setTimeout(r, attempt * 3000));
+      else await new Promise((r) => setTimeout(r, attempt * 1500));
     }
   }
 }

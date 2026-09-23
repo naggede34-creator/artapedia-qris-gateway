@@ -4,6 +4,7 @@ const passport = require('passport');
 const crypto = require('crypto');
 const { db } = require('./db');
 const { notify } = require('./telegram');
+const { background } = require('./background');
 const { sha256 } = require('./utils');
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
@@ -23,29 +24,32 @@ function normalizeCode(code) {
 }
 const hashCode = (code) => sha256(normalizeCode(code));
 
-function createUser(username, via) {
+async function createUser(username, via) {
   const code = generateCode();
-  const info = db
-    .prepare('INSERT INTO users (username, access_code_hash, webhook_secret) VALUES (?,?,?)')
-    .run(username, hashCode(code), crypto.randomBytes(24).toString('hex'));
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
-  notify.newUser(user, via);
+  const info = await db.run(
+    'INSERT INTO users (username, access_code_hash, webhook_secret) VALUES (?,?,?)',
+    username, hashCode(code), crypto.randomBytes(24).toString('hex')
+  );
+  const user = await db.get('SELECT * FROM users WHERE id = ?', info.lastInsertRowid);
+  background(notify.newUser(user, via));
   return { user, code };
 }
 
 /** Buat kode baru untuk user (kode lama langsung tidak berlaku). */
-function resetCode(userId) {
+async function resetCode(userId) {
   const code = generateCode();
-  db.prepare('UPDATE users SET access_code_hash = ? WHERE id = ?').run(hashCode(code), userId);
+  await db.run('UPDATE users SET access_code_hash = ? WHERE id = ?', hashCode(code), userId);
   return code;
 }
 
-function findByCode(code) {
+async function findByCode(code) {
   if (normalizeCode(code).length !== 16) return null;
-  return db.prepare('SELECT * FROM users WHERE access_code_hash = ?').get(hashCode(code)) || null;
+  return (await db.get('SELECT * FROM users WHERE access_code_hash = ?', hashCode(code))) || null;
 }
 
 passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser((id, done) => done(null, db.prepare('SELECT * FROM users WHERE id = ?').get(id) || false));
+passport.deserializeUser((id, done) => {
+  db.get('SELECT * FROM users WHERE id = ?', id).then((u) => done(null, u || false), done);
+});
 
 module.exports = { passport, createUser, resetCode, findByCode, USERNAME_RE };

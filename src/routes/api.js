@@ -38,9 +38,8 @@ router.get('/info', (req, res) =>
 
 router.use(apiAuth);
 
-const profile = (req, res) => {
-  const u = db.prepare('SELECT username, balance, created_at FROM users WHERE id=?').get(req.apiUser.id);
-  ok(res, u);
+const profile = async (req, res) => {
+  ok(res, await db.get('SELECT username, balance, created_at FROM users WHERE id=?', req.apiUser.id));
 };
 router.get('/profile', profile);
 router.post('/profile', profile);
@@ -60,7 +59,7 @@ router.post('/deposit/create', wrap(async (req, res) => {
 }));
 
 router.post('/deposit/status', wrap(async (req, res) => {
-  let dep = deposits.findForUser(req.apiUser.id, String(field(req, 'id') || ''));
+  let dep = await deposits.findForUser(req.apiUser.id, String(field(req, 'id') || ''));
   if (!dep) return bad(res, 'Deposit tidak ditemukan', 404);
   try {
     dep = await deposits.refreshDeposit(dep);
@@ -69,14 +68,14 @@ router.post('/deposit/status', wrap(async (req, res) => {
 }));
 
 router.post('/deposit/cancel', wrap(async (req, res) => {
-  const dep = deposits.findForUser(req.apiUser.id, String(field(req, 'id') || ''));
+  const dep = await deposits.findForUser(req.apiUser.id, String(field(req, 'id') || ''));
   if (!dep) return bad(res, 'Deposit tidak ditemukan', 404);
   ok(res, deposits.publicView(await deposits.cancelDeposit(dep)));
 }));
 
-router.get('/deposit/list', (req, res) => {
+router.get('/deposit/list', async (req, res) => {
   const limit = Math.min(100, toInt(req.query.limit) || 20);
-  const rows = db.prepare('SELECT * FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT ?').all(req.apiUser.id, limit);
+  const rows = await db.all('SELECT * FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT ?', req.apiUser.id, limit);
   ok(res, rows.map(deposits.publicView));
 });
 
@@ -104,7 +103,7 @@ router.post('/withdraw/create', wrap(async (req, res) => {
 }));
 
 router.post('/withdraw/status', wrap(async (req, res) => {
-  let w = withdrawals.findForUser(req.apiUser.id, String(field(req, 'id') || ''));
+  let w = await withdrawals.findForUser(req.apiUser.id, String(field(req, 'id') || ''));
   if (!w) return bad(res, 'Penarikan tidak ditemukan', 404);
   try {
     if (w.atl_id) w = await withdrawals.refreshWithdrawal(w);
@@ -112,15 +111,15 @@ router.post('/withdraw/status', wrap(async (req, res) => {
   ok(res, withdrawals.publicView(w));
 }));
 
-router.get('/withdraw/list', (req, res) => {
+router.get('/withdraw/list', async (req, res) => {
   const limit = Math.min(100, toInt(req.query.limit) || 20);
-  const rows = db.prepare('SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT ?').all(req.apiUser.id, limit);
+  const rows = await db.all('SELECT * FROM withdrawals WHERE user_id=? ORDER BY id DESC LIMIT ?', req.apiUser.id, limit);
   ok(res, rows.map(withdrawals.publicView));
 });
 
-router.get('/mutations', (req, res) => {
+router.get('/mutations', async (req, res) => {
   const limit = Math.min(200, toInt(req.query.limit) || 50);
-  ok(res, db.prepare('SELECT type, amount, balance_after, description, created_at FROM mutations WHERE user_id=? ORDER BY id DESC LIMIT ?').all(req.apiUser.id, limit));
+  ok(res, await db.all('SELECT type, amount, balance_after, description, created_at FROM mutations WHERE user_id=? ORDER BY id DESC LIMIT ?', req.apiUser.id, limit));
 });
 
 router.use((req, res) => bad(res, 'Endpoint tidak ditemukan', 404));

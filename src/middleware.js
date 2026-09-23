@@ -47,10 +47,10 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function apiAuth(req, res, next) {
+async function apiAuth(req, res, next) {
   const bearer = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const key = req.get('x-api-key') || bearer || (req.body && req.body.api_key) || req.query.api_key;
-  const user = findUserByKey(key);
+  const user = await findUserByKey(key);
   if (!user) return res.status(401).json({ status: false, code: 401, message: 'API key tidak valid atau sudah dicabut' });
   if (user.banned) return res.status(403).json({ status: false, code: 403, message: 'Akun diblokir' });
   req.apiUser = user;

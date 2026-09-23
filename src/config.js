@@ -4,8 +4,20 @@ const int = (v, d) => (v === undefined || v === '' ? d : parseInt(v, 10));
 
 module.exports = {
   port: int(process.env.PORT, 3000),
-  baseUrl: (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  baseUrl: (
+    process.env.BASE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : 'http://localhost:3000')
+  ).replace(/\/$/, ''),
   sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  db: {
+    url: process.env.TURSO_DATABASE_URL || '',
+    authToken: process.env.TURSO_AUTH_TOKEN || '',
+  },
+  // Kunci rahasia untuk URL cron (cron-job.org) : {BASE_URL}/cron/tick?key=CRON_SECRET
+  cronSecret: process.env.CRON_SECRET || '',
+  // Kunci untuk membuat akun admin lewat browser di /setup-admin
+  adminSetupKey: process.env.ADMIN_SETUP_KEY || '',
+  isVercel: !!process.env.VERCEL,
   dbPath: process.env.DB_PATH || require('path').join(__dirname, '..', 'data', 'artapedia.db'),
 
   atlantic: {

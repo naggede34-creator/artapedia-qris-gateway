@@ -8,90 +8,97 @@ const { toInt } = require('../utils');
 const { resetCode } = require('../auth');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+// Batas body Vercel ±4.5MB
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024 } });
 
 router.use(requireLogin, requireAdmin);
 
 const TABLES = ['users', 'api_keys', 'deposits', 'withdrawals', 'mutations'];
-const columnsOf = (t) => db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+const columnsOf = async (t) => (await db.all(`PRAGMA table_info(${t})`)).map((c) => c.name);
 
 router.get('/', async (req, res) => {
+  const [users, balance, depToday, depAll, wdAll, pendingDep, pendingWd, recentDep, recentWd] = await Promise.all([
+    db.get('SELECT COUNT(*) c FROM users'),
+    db.get('SELECT COALESCE(SUM(balance),0) s FROM users'),
+    db.get("SELECT COALESCE(SUM(nominal),0) s, COUNT(*) c FROM deposits WHERE status='success' AND date(paid_at)=date('now')"),
+    db.get("SELECT COALESCE(SUM(nominal),0) s, COUNT(*) c FROM deposits WHERE status='success'"),
+    db.get("SELECT COALESCE(SUM(amount),0) s, COALESCE(SUM(admin_fee),0) f, COUNT(*) c FROM withdrawals WHERE status='success'"),
+    db.get("SELECT COUNT(*) c FROM deposits WHERE status='pending'"),
+    db.get("SELECT COUNT(*) c FROM withdrawals WHERE status IN ('pending','processing')"),
+    db.all('SELECT d.*, u.username FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 10'),
+    db.all('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id=w.user_id ORDER BY w.id DESC LIMIT 10'),
+  ]);
   const stats = {
-    users: db.prepare('SELECT COUNT(*) c FROM users').get().c,
-    balance: db.prepare('SELECT COALESCE(SUM(balance),0) s FROM users').get().s,
-    depToday: db.prepare("SELECT COALESCE(SUM(nominal),0) s, COUNT(*) c FROM deposits WHERE status='success' AND date(paid_at)=date('now')").get(),
-    depAll: db.prepare("SELECT COALESCE(SUM(nominal),0) s, COUNT(*) c FROM deposits WHERE status='success'").get(),
-    wdAll: db.prepare("SELECT COALESCE(SUM(amount),0) s, COALESCE(SUM(admin_fee),0) f, COUNT(*) c FROM withdrawals WHERE status='success'").get(),
-    pendingDep: db.prepare("SELECT COUNT(*) c FROM deposits WHERE status='pending'").get().c,
-    pendingWd: db.prepare("SELECT COUNT(*) c FROM withdrawals WHERE status IN ('pending','processing')").get().c,
+    users: users.c, balance: balance.s, depToday, depAll, wdAll, pendingDep: pendingDep.c, pendingWd: pendingWd.c,
   };
   let atl = null;
   try {
     atl = await atlantic.profile();
   } catch (e) { /* opsional */ }
-  const recentDep = db.prepare('SELECT d.*, u.username FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 10').all();
-  const recentWd = db.prepare('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id=w.user_id ORDER BY w.id DESC LIMIT 10').all();
   res.render('admin/index', { title: 'Admin', stats, atl, recentDep, recentWd });
 });
 
-router.get('/users', (req, res) => {
+router.get('/users', async (req, res) => {
   const q = String(req.query.q || '').trim();
   const users = q
-    ? db.prepare('SELECT * FROM users WHERE username LIKE ? OR CAST(id AS TEXT) = ? ORDER BY id DESC LIMIT 200').all(`%${q}%`, q)
-    : db.prepare('SELECT * FROM users ORDER BY id DESC LIMIT 200').all();
+    ? await db.all('SELECT * FROM users WHERE username LIKE ? OR CAST(id AS TEXT) = ? ORDER BY id DESC LIMIT 200', `%${q}%`, q)
+    : await db.all('SELECT * FROM users ORDER BY id DESC LIMIT 200');
   const resetInfo = req.session.resetInfo;
   delete req.session.resetInfo;
   res.render('admin/users', { title: 'Kelola Pengguna', users, q, resetInfo });
 });
 
-router.post('/users/:id/ban', (req, res) => {
+router.post('/users/:id/ban', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (id === req.user.id) flash(req, 'error', 'Tidak bisa memblokir diri sendiri');
-  else db.prepare('UPDATE users SET banned = 1 - banned WHERE id=?').run(id);
+  else await db.run('UPDATE users SET banned = 1 - banned WHERE id=?', id);
   res.redirect('/admin/users');
 });
 
-router.post('/users/:id/role', (req, res) => {
+router.post('/users/:id/role', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (id === req.user.id) flash(req, 'error', 'Tidak bisa mengubah role diri sendiri');
-  else db.prepare("UPDATE users SET role = CASE role WHEN 'admin' THEN 'user' ELSE 'admin' END WHERE id=?").run(id);
+  else await db.run("UPDATE users SET role = CASE role WHEN 'admin' THEN 'user' ELSE 'admin' END WHERE id=?", id);
   res.redirect('/admin/users');
 });
 
 // User lupa kode -> admin buatkan kode baru (kode lama langsung tidak berlaku)
-router.post('/users/:id/reset-code', (req, res) => {
-  const u = db.prepare('SELECT id, username FROM users WHERE id = ?').get(parseInt(req.params.id, 10));
-  if (u) req.session.resetInfo = { username: u.username, code: resetCode(u.id) };
+router.post('/users/:id/reset-code', async (req, res) => {
+  const u = await db.get('SELECT id, username FROM users WHERE id = ?', parseInt(req.params.id, 10));
+  if (u) req.session.resetInfo = { username: u.username, code: await resetCode(u.id) };
   res.redirect('/admin/users');
 });
 
-router.post('/users/:id/balance', (req, res) => {
+router.post('/users/:id/balance', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const sign = req.body.op === 'sub' ? -1 : 1;
   const amount = toInt(req.body.amount);
   if (!amount) flash(req, 'error', 'Nominal tidak valid');
   else {
-    const r = changeBalance(id, sign * amount, 'admin', `Penyesuaian admin: ${String(req.body.reason || '-').slice(0, 100)}`);
+    const r = await db.tx((t) =>
+      changeBalance(t, id, sign * amount, 'admin', `Penyesuaian admin: ${String(req.body.reason || '-').slice(0, 100)}`));
     flash(req, r === null ? 'error' : 'success', r === null ? 'Saldo tidak cukup untuk dikurangi' : 'Saldo diperbarui');
   }
   res.redirect('/admin/users');
 });
 
-router.get('/transactions', (req, res) => {
-  const deps = db.prepare('SELECT d.*, u.username FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 300').all();
-  const wds = db.prepare('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id=w.user_id ORDER BY w.id DESC LIMIT 300').all();
+router.get('/transactions', async (req, res) => {
+  const [deps, wds] = await Promise.all([
+    db.all('SELECT d.*, u.username FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 300'),
+    db.all('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id=w.user_id ORDER BY w.id DESC LIMIT 300'),
+  ]);
   res.render('admin/transactions', { title: 'Transaksi', deps, wds });
 });
 
 // ---------------- BACKUP ----------------
 router.get('/backup', (req, res) => res.render('admin/backup', { title: 'Backup & Restore' }));
 
-router.get('/backup/export.json', (req, res) => {
+router.get('/backup/export.json', async (req, res) => {
   const tables = {};
-  for (const t of TABLES) tables[t] = db.prepare(`SELECT * FROM ${t}`).all();
+  for (const t of TABLES) tables[t] = await db.all(`SELECT * FROM ${t}`);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   res.setHeader('Content-Disposition', `attachment; filename="artapedia-backup-${stamp}.json"`);
-  res.json({ app: 'artapedia-qris-gateway', version: 1, exported_at: new Date().toISOString(), tables });
+  res.json({ app: 'artapedia-qris-gateway', version: 2, exported_at: new Date().toISOString(), tables });
 });
 
 const CSV_COLS = ['id', 'username', 'role', 'balance', 'banned', 'created_at'];
@@ -101,8 +108,8 @@ const csvCell = (v) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-router.get('/backup/users.csv', (req, res) => {
-  const rows = db.prepare(`SELECT ${CSV_COLS.join(',')} FROM users ORDER BY id`).all();
+router.get('/backup/users.csv', async (req, res) => {
+  const rows = await db.all(`SELECT ${CSV_COLS.join(',')} FROM users ORDER BY id`);
   const csv = [CSV_COLS.join(','), ...rows.map((r) => CSV_COLS.map((c) => csvCell(r[c])).join(','))].join('\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="artapedia-users.csv"');
@@ -131,7 +138,7 @@ function parseCsv(text) {
   return body.map((r) => Object.fromEntries(head.map((h, i) => [h.trim(), (r[i] || '').replace(/^'(?=[=+\-@])/, '')])));
 }
 
-router.post('/backup/import', upload.single('file'), csrfStrict, (req, res) => {
+router.post('/backup/import', upload.single('file'), csrfStrict, async (req, res) => {
   const mode = req.body.mode;
   try {
     if (!req.file) throw new Error('Pilih file backup dulu');
@@ -144,31 +151,32 @@ router.post('/backup/import', upload.single('file'), csrfStrict, (req, res) => {
     if (mode === 'replace') {
       if (isCsv) throw new Error('Restore penuh butuh file backup .json');
       if (req.body.confirm !== 'RESTORE') throw new Error('Ketik RESTORE untuk konfirmasi restore penuh');
+      const stmts = [];
       const counts = {};
-      db.transaction(() => {
-        for (const t of [...TABLES].reverse()) db.prepare(`DELETE FROM ${t}`).run();
-        for (const t of TABLES) {
-          const cols = columnsOf(t);
-          const rows = Array.isArray(payload.tables[t]) ? payload.tables[t] : [];
-          counts[t] = 0;
-          for (const r of rows) {
-            const keys = cols.filter((c) => r[c] !== undefined);
-            db.prepare(`INSERT INTO ${t} (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`).run(...keys.map((k) => r[k]));
-            counts[t]++;
-          }
+      for (const t of [...TABLES].reverse()) stmts.push({ sql: `DELETE FROM ${t}` });
+      for (const t of TABLES) {
+        const cols = await columnsOf(t);
+        const rows = Array.isArray(payload.tables[t]) ? payload.tables[t] : [];
+        counts[t] = rows.length;
+        for (const r of rows) {
+          const keys = cols.filter((c) => r[c] !== undefined);
+          stmts.push({ sql: `INSERT INTO ${t} (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`, args: keys.map((k) => r[k]) });
         }
-      })();
+      }
+      await db.batch(stmts); // atomik: semua berhasil atau tidak sama sekali
       flash(req, 'success', 'Restore penuh selesai: ' + Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(', '));
     } else {
-      let added = 0, skipped = 0;
-      db.transaction(() => {
-        for (const u of payload.tables.users) {
-          const username = String(u.username || '').trim();
-          if (!username || db.prepare('SELECT 1 FROM users WHERE username = ? COLLATE NOCASE').get(username)) { skipped++; continue; }
-          db.prepare(
-            `INSERT INTO users (username, access_code_hash, role, balance, banned, webhook_url, webhook_secret, created_at)
-             VALUES (?,?,?,?,?,?,?,COALESCE(?, datetime('now')))`
-          ).run(
+      const existing = new Set((await db.all('SELECT username FROM users')).map((u) => u.username.toLowerCase()));
+      const stmts = [];
+      let skipped = 0;
+      for (const u of payload.tables.users) {
+        const username = String(u.username || '').trim();
+        if (!username || existing.has(username.toLowerCase())) { skipped++; continue; }
+        existing.add(username.toLowerCase());
+        stmts.push({
+          sql: `INSERT INTO users (username, access_code_hash, role, balance, banned, webhook_url, webhook_secret, created_at)
+                VALUES (?,?,?,?,?,?,?,COALESCE(?, datetime('now')))`,
+          args: [
             username,
             u.access_code_hash || null,
             u.role === 'admin' ? 'admin' : 'user',
@@ -176,12 +184,12 @@ router.post('/backup/import', upload.single('file'), csrfStrict, (req, res) => {
             parseInt(u.banned, 10) ? 1 : 0,
             u.webhook_url || null,
             u.webhook_secret || crypto.randomBytes(24).toString('hex'),
-            u.created_at || null
-          );
-          added++;
-        }
-      })();
-      flash(req, 'success', `Import pengguna selesai: ${added} ditambahkan, ${skipped} dilewati (sudah ada/tidak valid).`);
+            u.created_at || null,
+          ],
+        });
+      }
+      if (stmts.length) await db.batch(stmts);
+      flash(req, 'success', `Import pengguna selesai: ${stmts.length} ditambahkan, ${skipped} dilewati (sudah ada/tidak valid).`);
     }
   } catch (e) {
     flash(req, 'error', 'Import gagal: ' + e.message);
